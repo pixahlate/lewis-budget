@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Lewis Budget" />
+<title>Lewis Family Budget</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --green: #4ade80;
+    --green-dim: rgba(74,222,128,0.12);
+    --yellow: #fbbf24;
+    --yellow-dim: rgba(251,191,36,0.12);
+    --red: #f87171;
+    --red-dim: rgba(248,113,113,0.12);
+    --accent: #6ee7b7;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overscroll-behavior: none;
+  }
+
+  /* Name screen */
+  #name-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 24px;
+    gap: 32px;
+  }
+
+  #name-screen h1 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    text-align: center;
+  }
+
+  #name-screen p {
+    font-size: 15px;
+    color: var(--text2);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .name-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .name-btn {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 18px 24px;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+    text-align: center;
+  }
+
+  .name-btn:hover, .name-btn:active {
+    background: var(--surface2);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* App shell */
+  #app { display: none; max-width: 480px; margin: 0 auto; padding: 0 0 40px; }
+
+  /* Header */
+  .app-header {
+    padding: 56px 20px 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .app-title { font-size: 13px; font-weight: 500; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .app-name { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; margin-top: 2px; }
+
+  .sync-dot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .sync-dot .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    transition: background 0.4s;
+  }
+
+  .sync-dot.live .dot { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Total card */
+  .total-card {
+    margin: 0 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+  }
+
+  .total-row { display: flex; justify-content: space-between; align-items: flex-start; }
+
+  .total-label { font-size: 12px; color: var(--text2); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+
+  .total-amount {
+    font-family: 'DM Mono', monospace;
+    font-size: 38px;
+    font-weight: 500;
+    letter-spacing: -1px;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .total-amount.ok { color: var(--green); }
+  .total-amount.warn { color: var(--yellow); }
+  .total-amount.over { color: var(--red); }
+
+  .total-meta { font-size: 13px; color: var(--text2); margin-top: 8px; }
+
+  .period-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text2);
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  /* Progress bar */
+  .total-bar { margin-top: 16px; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .total-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease, background 0.3s; }
+
+  /* Section label */
+  .section-label {
+    padding: 0 20px;
+    margin: 24px 0 12px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  /* Category cards */
+  .cat-list { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; }
+
+  .cat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    transition: border-color 0.2s;
+  }
+
+  .cat-card.editing { border-color: var(--border2); }
+
+  .cat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+  .cat-left { display: flex; flex-direction: column; gap: 3px; }
+  .cat-name { font-size: 15px; font-weight: 500; }
+  .cat-spent { font-size: 12px; color: var(--text2); }
+
+  .cat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+  .cat-remaining {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    transition: color 0.3s;
+  }
+
+  .cat-remaining.ok { color: var(--green); }
+  .cat-remaining.warn { color: var(--yellow); }
+  .cat-remaining.over { color: var(--red); }
+
+  .cat-budget-label { font-size: 11px; color: var(--text3); }
+
+  .cat-bar { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
+  .cat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease, background 0.3s; }
+  .cat-bar-fill.ok { background: var(--green); }
+  .cat-bar-fill.warn { background: var(--yellow); }
+  .cat-bar-fill.over { background: var(--red); }
+
+  /* Input row */
+  .cat-input-row { display: flex; gap: 8px; }
+
+  .cat-input-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 15px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+
+  .cat-input-row input::placeholder { color: var(--text3); }
+  .cat-input-row input:focus { border-color: var(--border2); }
+
+  .add-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .add-btn:active { transform: scale(0.96); background: var(--border); }
+
+  .cat-last { font-size: 11px; color: var(--text3); margin-top: 8px; font-family: 'DM Mono', monospace; }
+
+  /* Edit budget panel */
+  .edit-budget-row {
+    margin-top: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .edit-budget-row.open { display: flex; }
+
+  .edit-budget-label { font-size: 11px; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .edit-budget-controls { display: flex; gap: 8px; }
+
+  .edit-budget-controls input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 15px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  .edit-budget-controls input:focus { border-color: var(--border2); }
+
+  .save-btn {
+    background: var(--green-dim);
+    border: 1px solid rgba(74,222,128,0.25);
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--green);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+
+  .save-btn:active { transform: scale(0.96); }
+
+  .cancel-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .edit-toggle {
+    font-size: 11px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .edit-toggle:hover { color: var(--text2); }
+
+  /* Activity log */
+  .log-list { display: flex; flex-direction: column; gap: 0; padding: 0 16px; }
+
+  .log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-item:last-child { border-bottom: none; }
+
+  .log-cat { font-size: 14px; font-weight: 500; }
+  .log-meta { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  .log-amount {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--red);
+    font-weight: 500;
+  }
+
+  /* Reset */
+  .reset-section { padding: 24px 20px 0; text-align: center; }
+
+  .reset-btn {
+    font-size: 12px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .reset-btn:hover { color: var(--text2); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 24px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--text);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Who badge */
+  .who-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  .who-badge.lane { background: rgba(110,231,183,0.15); color: var(--accent); }
+  .who-badge.tori { background: rgba(251,191,36,0.15); color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<!-- Name selection screen -->
+<div id="name-screen">
+  <div>
+    <div style="font-size:13px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-bottom:10px">Lewis Family Budget</div>
+    <h1>Who's using<br/>this device?</h1>
+  </div>
+  <p>This helps label your entries so you both know who added what.</p>
+  <div class="name-options">
+    <button class="name-btn" onclick="setUser('Lane')">Lane</button>
+    <button class="name-btn" onclick="setUser('Tori')">Tori</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <div class="app-header">
+    <div>
+      <div class="app-title">Lewis Family</div>
+      <div class="app-name" id="app-name-display">Budget</div>
+    </div>
+    <div class="sync-dot" id="sync-indicator">
+      <div class="dot"></div>
+      <span id="sync-label">Connecting…</span>
+    </div>
+  </div>
+
+  <!-- Total card -->
+  <div class="total-card">
+    <div class="total-row">
+      <div>
+        <div class="total-label">Remaining</div>
+        <div class="total-amount ok" id="total-amount">$0</div>
+        <div class="total-meta" id="total-meta"></div>
+      </div>
+      <div class="period-badge" id="period-badge"></div>
+    </div>
+    <div class="total-bar">
+      <div class="total-bar-fill" id="total-bar-fill" style="width:0%;background:var(--green)"></div>
+    </div>
+  </div>
+
+  <div class="section-label">Categories</div>
+  <div class="cat-list" id="cat-list"></div>
+
+  <div class="section-label" style="margin-top:28px">Recent activity</div>
+  <div class="log-list" id="log-list"></div>
+
+  <div class="reset-section">
+    <button class="reset-btn" onclick="resetPeriod()">Reset for new pay period</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAdO1Nqfuc7e8Fp8MgJP3Dd5hXymT3-fkc",
+  authDomain: "lewis-family-budget.firebaseapp.com",
+  databaseURL: "https://lewis-family-budget-default-rtdb.firebaseio.com",
+  projectId: "lewis-family-budget",
+  storageBucket: "lewis-family-budget.firebasestorage.app",
+  messagingSenderId: "450106171404",
+  appId: "1:450106171404:web:4ccf38477cf508ba278e29",
+  measurementId: "G-X7FHFGEB70"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
+const budgetRef = ref(db, 'budget');
+
+const DEFAULT_CATEGORIES = [
+  { id: 'groceries',  name: 'Groceries',       budget: 400 },
+  { id: 'eating_out', name: 'Going out to eat', budget: 200 },
+  { id: 'fun',        name: 'Fun money',         budget: 150 },
+  { id: 'clothes',    name: 'Clothes',           budget: 100 },
+];
+
+let currentUser = null;
+let state = null;
+let openEditId = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmt(n) {
+  const abs = Math.abs(Math.round(n)).toLocaleString();
+  return (n < 0 ? '-$' : '$') + abs;
+}
+
+function status(pct) {
+  if (pct >= 1) return 'over';
+  if (pct >= 0.75) return 'warn';
+  return 'ok';
+}
+
+function statusColor(s) {
+  return s === 'over' ? 'var(--red)' : s === 'warn' ? 'var(--yellow)' : 'var(--green)';
+}
+
+function getPeriodLabel() {
+  const now = new Date();
+  const d = now.getDate();
+  const m = now.toLocaleString('default', { month: 'short' });
+  const y = now.getFullYear();
+  // Wife pays biweekly from Apr 24 — find current window
+  const base = new Date(2026, 3, 24);
+  const msDay = 86400000 * 14;
+  let start = new Date(base);
+  while (start.getTime() + msDay <= now.getTime()) start = new Date(start.getTime() + msDay);
+  const end = new Date(start.getTime() + msDay - 1);
+  const fmtD = dt => `${dt.toLocaleString('default',{month:'short'})} ${dt.getDate()}`;
+  return `${fmtD(start)} – ${fmtD(end)}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function render() {
+  if (!state) return;
+
+  const cats = state.categories || DEFAULT_CATEGORIES;
+  const spent = state.spent || {};
+  const log = state.log || {};
+
+  const totalBudget = cats.reduce((s, c) => s + c.budget, 0);
+  const totalSpent = cats.reduce((s, c) => s + (spent[c.id] || 0), 0);
+  const totalRemaining = totalBudget - totalSpent;
+  const totalPct = totalSpent / totalBudget;
+  const totalStatus = status(totalPct);
+
+  // Total card
+  const ta = document.getElementById('total-amount');
+  ta.textContent = fmt(totalRemaining);
+  ta.className = 'total-amount ' + totalStatus;
+  document.getElementById('total-meta').textContent = `$${Math.round(totalSpent)} of $${totalBudget} spent this period`;
+  document.getElementById('period-badge').innerHTML = `Pay period<br/>${getPeriodLabel()}`;
+  const tbf = document.getElementById('total-bar-fill');
+  tbf.style.width = Math.min(totalPct * 100, 100).toFixed(1) + '%';
+  tbf.style.background = statusColor(totalStatus);
+
+  // Category cards
+  const container = document.getElementById('cat-list');
+  container.innerHTML = '';
+
+  cats.forEach(cat => {
+    const catSpent = spent[cat.id] || 0;
+    const remaining = cat.budget - catSpent;
+    const pct = catSpent / cat.budget;
+    const s = status(pct);
+    const isEditing = openEditId === cat.id;
+
+    // Last log entry for this cat
+    const catLogs = Object.values(log).filter(l => l.cat === cat.id).sort((a,b) => b.ts - a.ts);
+    const lastEntry = catLogs[0];
+
+    const card = document.createElement('div');
+    card.className = 'cat-card' + (isEditing ? ' editing' : '');
+    card.innerHTML = `
+      <div class="cat-top">
+        <div class="cat-left">
+          <div class="cat-name">${cat.name}</div>
+          <div class="cat-spent">$${Math.round(catSpent)} spent</div>
+        </div>
+        <div class="cat-right">
+          <div class="cat-remaining ${s}">${fmt(remaining)}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="cat-budget-label">of $${cat.budget}</span>
+            <button class="edit-toggle" onclick="window._toggleEdit('${cat.id}')">${isEditing ? 'done' : 'edit budget'}</button>
+          </div>
+        </div>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-bar-fill ${s}" style="width:${Math.min(pct*100,100).toFixed(1)}%"></div>
+      </div>
+
+      <div class="edit-budget-row ${isEditing ? 'open' : ''}" id="edit-${cat.id}">
+        <div class="edit-budget-label">Change budget limit</div>
+        <div class="edit-budget-controls">
+          <input type="number" id="budget-inp-${cat.id}" value="${cat.budget}" min="1" step="1" inputmode="decimal" />
+          <button class="save-btn" onclick="window._saveBudget('${cat.id}')">Save</button>
+          <button class="cancel-btn" onclick="window._toggleEdit('${cat.id}')">✕</button>
+        </div>
+      </div>
+
+      <div class="cat-input-row">
+        <input type="number" id="inp-${cat.id}" placeholder="$ amount" min="0" step="0.01" inputmode="decimal" />
+        <button class="add-btn" onclick="window._addExpense('${cat.id}')">Add</button>
+      </div>
+      ${lastEntry ? `<div class="cat-last">${lastEntry.who} · $${parseFloat(lastEntry.amount).toFixed(2)} · ${lastEntry.time}</div>` : ''}
+    `;
+    container.appendChild(card);
+
+    if (isEditing) {
+      setTimeout(() => {
+        const inp = document.getElementById('budget-inp-' + cat.id);
+        if (inp) { inp.focus(); inp.select(); }
+      }, 50);
+    }
+  });
+
+  // Log
+  const logContainer = document.getElementById('log-list');
+  const entries = Object.values(log).sort((a,b) => b.ts - a.ts).slice(0, 10);
+  if (entries.length === 0) {
+    logContainer.innerHTML = '<div style="padding:16px 4px;font-size:13px;color:var(--text3)">No entries yet this period</div>';
+  } else {
+    logContainer.innerHTML = entries.map(l => {
+      const cat = cats.find(c => c.id === l.cat);
+      const whoClass = l.who === 'Lane' ? 'lane' : 'tori';
+      return `<div class="log-item">
+        <div>
+          <div class="log-cat">${cat ? cat.name : l.cat} <span class="who-badge ${whoClass}">${l.who}</span></div>
+          <div class="log-meta">${l.time}</div>
+        </div>
+        <div class="log-amount">-$${parseFloat(l.amount).toFixed(2)}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── Firebase write ────────────────────────────────────────────────────────────
+
+async function writeState(newState) {
+  await set(budgetRef, newState);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+window._toggleEdit = function(catId) {
+  openEditId = openEditId === catId ? null : catId;
+  render();
+};
+
+window._saveBudget = async function(catId) {
+  const inp = document.getElementById('budget-inp-' + catId);
+  const val = parseInt(inp.value);
+  if (!val || val <= 0) { inp.focus(); return; }
+  const newState = JSON.parse(JSON.stringify(state));
+  const cat = newState.categories.find(c => c.id === catId);
+  if (cat) {
+    cat.budget = val;
+    openEditId = null;
+    await writeState(newState);
+    showToast('Budget updated');
+  }
+};
+
+window._addExpense = async function(catId) {
+  const inp = document.getElementById('inp-' + catId);
+  const val = parseFloat(inp.value);
+  if (!val || val <= 0) { inp.focus(); return; }
+
+  const newState = JSON.parse(JSON.stringify(state));
+  if (!newState.spent) newState.spent = {};
+  if (!newState.log) newState.log = {};
+
+  newState.spent[catId] = (newState.spent[catId] || 0) + val;
+
+  const now = new Date();
+  const timeStr = now.toLocaleDateString('en-US', {month:'short',day:'numeric'}) + ' ' +
+                  now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const key = 'e' + Date.now();
+  newState.log[key] = {
+    cat: catId,
+    amount: val.toFixed(2),
+    who: currentUser,
+    time: timeStr,
+    ts: Date.now()
+  };
+
+  inp.value = '';
+  await writeState(newState);
+
+  const cat = state.categories.find(c => c.id === catId);
+  showToast(`Added $${val.toFixed(2)} to ${cat ? cat.name : catId}`);
+};
+
+window.resetPeriod = async function() {
+  if (!confirm('Reset all spending for a new pay period?\nBudget limits will be kept.')) return;
+  const newState = JSON.parse(JSON.stringify(state));
+  newState.spent = {};
+  newState.log = {};
+  await writeState(newState);
+  showToast('Period reset!');
+};
+
+// ── User selection ────────────────────────────────────────────────────────────
+
+window.setUser = function(name) {
+  currentUser = name;
+  localStorage.setItem('lewis_budget_user', name);
+  document.getElementById('name-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('app-name-display').textContent = `Hey, ${name}`;
+  startSync();
+};
+
+// ── Firebase sync ─────────────────────────────────────────────────────────────
+
+function startSync() {
+  const syncEl = document.getElementById('sync-indicator');
+  const syncLabel = document.getElementById('sync-label');
+
+  onValue(budgetRef, (snapshot) => {
+    let data = snapshot.val();
+
+    if (!data) {
+      // First time — initialize with defaults
+      data = {
+        categories: DEFAULT_CATEGORIES,
+        spent: {},
+        log: {}
+      };
+      set(budgetRef, data);
+    }
+
+    // Ensure categories exist
+    if (!data.categories) data.categories = DEFAULT_CATEGORIES;
+
+    state = data;
+    syncEl.className = 'sync-dot live';
+    syncLabel.textContent = 'Live';
+    render();
+  }, (error) => {
+    syncEl.className = 'sync-dot';
+    syncLabel.textContent = 'Offline';
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+const savedUser = localStorage.getItem('lewis_budget_user');
+if (savedUser) {
+  window.setUser(savedUser);
+}
+</script>
+</body>
+</html>
