@@ -9,400 +9,164 @@
 <title>Lewis Family Budget</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --bg: #0f0f0f;
-    --surface: #1a1a1a;
-    --surface2: #222222;
-    --border: rgba(255,255,255,0.08);
-    --border2: rgba(255,255,255,0.14);
-    --text: #f0f0f0;
-    --text2: #888;
-    --text3: #555;
-    --green: #4ade80;
-    --green-dim: rgba(74,222,128,0.12);
-    --yellow: #fbbf24;
-    --yellow-dim: rgba(251,191,36,0.12);
-    --red: #f87171;
-    --red-dim: rgba(248,113,113,0.12);
-    --accent: #6ee7b7;
-    --radius: 16px;
-    --radius-sm: 10px;
-  }
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface2: #222222;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f0f0;
+  --text2: #888;
+  --text3: #555;
+  --green: #4ade80;
+  --green-dim: rgba(74,222,128,0.12);
+  --yellow: #fbbf24;
+  --yellow-dim: rgba(251,191,36,0.12);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.12);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96,165,250,0.12);
+  --accent: #6ee7b7;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overscroll-behavior: none; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+/* ── Name screen ── */
+#name-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:40px 24px; gap:32px; }
+#name-screen h1 { font-size:28px; font-weight:600; letter-spacing:-0.5px; text-align:center; }
+#name-screen p { font-size:15px; color:var(--text2); text-align:center; line-height:1.6; }
+.name-options { display:flex; flex-direction:column; gap:12px; width:100%; max-width:320px; }
+.name-btn { background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius); padding:18px 24px; font-size:17px; font-weight:500; color:var(--text); cursor:pointer; transition:all 0.15s; font-family:'DM Sans',sans-serif; text-align:center; }
+.name-btn:hover, .name-btn:active { background:var(--surface2); border-color:var(--accent); color:var(--accent); }
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overscroll-behavior: none;
-  }
+/* ── App shell ── */
+#app { display:none; max-width:480px; margin:0 auto; padding:0 0 60px; }
 
-  /* Name screen */
-  #name-screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 40px 24px;
-    gap: 32px;
-  }
+/* ── Tab bar ── */
+.tab-bar { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:50; max-width:480px; margin:0 auto; }
+.tab-btn { flex:1; padding:12px 4px 20px; display:flex; flex-direction:column; align-items:center; gap:4px; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; color:var(--text3); font-size:10px; font-weight:500; letter-spacing:0.04em; text-transform:uppercase; transition:color 0.15s; position:relative; }
+.tab-btn.active { color:var(--accent); }
+.tab-btn svg { width:20px; height:20px; }
+.tab-badge { position:absolute; top:8px; right:calc(50% - 18px); background:var(--red); color:#fff; font-size:10px; font-weight:600; border-radius:10px; min-width:18px; height:18px; display:flex; align-items:center; justify-content:center; padding:0 5px; }
 
-  #name-screen h1 {
-    font-size: 28px;
-    font-weight: 600;
-    letter-spacing: -0.5px;
-    text-align: center;
-  }
+/* ── Header ── */
+.app-header { padding:56px 20px 16px; display:flex; align-items:flex-end; justify-content:space-between; }
+.app-title { font-size:13px; font-weight:500; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; }
+.app-name { font-size:26px; font-weight:600; letter-spacing:-0.5px; margin-top:2px; }
+.sync-dot { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text3); }
+.sync-dot .dot { width:7px; height:7px; border-radius:50%; background:var(--text3); transition:background 0.4s; }
+.sync-dot.live .dot { background:var(--green); box-shadow:0 0 6px var(--green); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-  #name-screen p {
-    font-size: 15px;
-    color: var(--text2);
-    text-align: center;
-    line-height: 1.6;
-  }
+/* ── Total card ── */
+.total-card { margin:0 16px 20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+.total-row { display:flex; justify-content:space-between; align-items:flex-start; }
+.total-label { font-size:12px; color:var(--text2); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:6px; }
+.total-amount { font-family:'DM Mono',monospace; font-size:38px; font-weight:500; letter-spacing:-1px; line-height:1; transition:color 0.3s; }
+.total-amount.ok { color:var(--green); } .total-amount.warn { color:var(--yellow); } .total-amount.over { color:var(--red); }
+.total-meta { font-size:13px; color:var(--text2); margin-top:8px; }
+.period-badge { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:11px; color:var(--text2); text-align:right; line-height:1.5; }
+.total-bar { margin-top:16px; height:3px; background:var(--surface2); border-radius:2px; overflow:hidden; }
+.total-bar-fill { height:100%; border-radius:2px; transition:width 0.5s ease, background 0.3s; }
 
-  .name-options {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: 100%;
-    max-width: 320px;
-  }
+/* ── Section label ── */
+.section-label { padding:0 20px; margin:24px 0 12px; font-size:11px; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; color:var(--text3); }
 
-  .name-btn {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    padding: 18px 24px;
-    font-size: 17px;
-    font-weight: 500;
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: 'DM Sans', sans-serif;
-    text-align: center;
-  }
+/* ── Category cards ── */
+.cat-list { display:flex; flex-direction:column; gap:10px; padding:0 16px; }
+.cat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; transition:border-color 0.2s; }
+.cat-card.editing { border-color:var(--border2); }
+.cat-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.cat-left { display:flex; flex-direction:column; gap:3px; }
+.cat-name { font-size:15px; font-weight:500; }
+.cat-spent { font-size:12px; color:var(--text2); }
+.cat-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.cat-remaining { font-family:'DM Mono',monospace; font-size:20px; font-weight:500; transition:color 0.3s; }
+.cat-remaining.ok { color:var(--green); } .cat-remaining.warn { color:var(--yellow); } .cat-remaining.over { color:var(--red); }
+.cat-budget-label { font-size:11px; color:var(--text3); }
+.cat-bar { height:3px; background:var(--surface2); border-radius:2px; overflow:hidden; margin-bottom:14px; }
+.cat-bar-fill { height:100%; border-radius:2px; transition:width 0.5s ease; }
+.cat-bar-fill.ok { background:var(--green); } .cat-bar-fill.warn { background:var(--yellow); } .cat-bar-fill.over { background:var(--red); }
+.cat-input-row { display:flex; gap:8px; }
+.cat-input-row input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; font-size:15px; color:var(--text); font-family:'DM Mono',monospace; outline:none; transition:border-color 0.15s; -webkit-appearance:none; }
+.cat-input-row input::placeholder { color:var(--text3); }
+.cat-input-row input:focus { border-color:var(--border2); }
+.add-btn { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 16px; font-size:13px; font-weight:500; color:var(--text); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.15s; white-space:nowrap; }
+.add-btn:active { transform:scale(0.96); }
+.cat-last { font-size:11px; color:var(--text3); margin-top:8px; font-family:'DM Mono',monospace; }
+.edit-budget-row { margin-top:10px; display:none; flex-direction:column; gap:8px; padding-top:12px; border-top:1px solid var(--border); }
+.edit-budget-row.open { display:flex; }
+.edit-budget-label { font-size:11px; color:var(--text2); letter-spacing:0.05em; text-transform:uppercase; }
+.edit-budget-controls { display:flex; gap:8px; }
+.edit-budget-controls input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; font-size:15px; color:var(--text); font-family:'DM Mono',monospace; outline:none; -webkit-appearance:none; }
+.edit-budget-controls input:focus { border-color:var(--border2); }
+.save-btn { background:var(--green-dim); border:1px solid rgba(74,222,128,0.25); border-radius:var(--radius-sm); padding:9px 16px; font-size:13px; font-weight:500; color:var(--green); cursor:pointer; font-family:'DM Sans',sans-serif; }
+.save-btn:active { transform:scale(0.96); }
+.cancel-btn { background:none; border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 12px; font-size:13px; color:var(--text2); cursor:pointer; font-family:'DM Sans',sans-serif; }
+.edit-toggle { font-size:11px; color:var(--text3); background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; padding:0; text-decoration:underline; text-underline-offset:3px; }
+.edit-toggle:hover { color:var(--text2); }
 
-  .name-btn:hover, .name-btn:active {
-    background: var(--surface2);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
+/* ── Activity log ── */
+.log-list { display:flex; flex-direction:column; gap:0; padding:0 16px; }
+.log-item { display:flex; justify-content:space-between; align-items:center; padding:12px 4px; border-bottom:1px solid var(--border); }
+.log-item:last-child { border-bottom:none; }
+.log-cat { font-size:14px; font-weight:500; }
+.log-meta { font-size:11px; color:var(--text3); margin-top:2px; font-family:'DM Mono',monospace; }
+.log-amount { font-family:'DM Mono',monospace; font-size:15px; color:var(--red); font-weight:500; }
+.who-badge { display:inline-block; font-size:10px; padding:2px 7px; border-radius:20px; font-weight:500; margin-left:4px; }
+.who-badge.lane { background:rgba(110,231,183,0.15); color:var(--accent); }
+.who-badge.tori { background:rgba(251,191,36,0.15); color:var(--yellow); }
+.who-badge.auto { background:rgba(96,165,250,0.15); color:var(--blue); }
+.who-badge.reviewed { background:rgba(167,139,250,0.15); color:#a78bfa; }
 
-  /* App shell */
-  #app { display: none; max-width: 480px; margin: 0 auto; padding: 0 0 40px; }
+/* ── Review queue ── */
+.review-section { padding:0 16px; display:flex; flex-direction:column; gap:10px; }
+.review-card { background:var(--surface); border:1px solid var(--yellow-dim); border-radius:var(--radius); padding:16px 18px; }
+.review-merchant { font-size:15px; font-weight:500; }
+.review-amount { font-family:'DM Mono',monospace; font-size:20px; color:var(--yellow); font-weight:500; }
+.review-date { font-size:12px; color:var(--text2); margin-top:2px; }
+.review-label { font-size:11px; color:var(--text2); margin:12px 0 8px; text-transform:uppercase; letter-spacing:0.06em; }
+.cat-picker { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.cat-pick-btn { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 10px; font-size:12px; font-weight:500; color:var(--text2); cursor:pointer; font-family:'DM Sans',sans-serif; text-align:center; transition:all 0.15s; }
+.cat-pick-btn:hover, .cat-pick-btn:active { background:var(--green-dim); border-color:rgba(74,222,128,0.3); color:var(--green); }
+.empty-review { padding:40px 16px; text-align:center; color:var(--text3); font-size:14px; line-height:1.8; }
 
-  /* Header */
-  .app-header {
-    padding: 56px 20px 20px;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
+/* ── Bank connect ── */
+.bank-section { padding:0 16px; }
+.bank-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px 20px; display:flex; flex-direction:column; gap:14px; }
+.bank-card h3 { font-size:16px; font-weight:600; }
+.bank-card p { font-size:13px; color:var(--text2); line-height:1.6; }
+.bank-status { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--surface2); border-radius:var(--radius-sm); font-size:13px; }
+.bank-status .status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.bank-status .status-dot.connected { background:var(--green); box-shadow:0 0 6px var(--green); }
+.bank-status .status-dot.disconnected { background:var(--text3); }
+.connect-btn { background:var(--blue-dim); border:1px solid rgba(96,165,250,0.3); border-radius:var(--radius-sm); padding:13px; font-size:14px; font-weight:500; color:var(--blue); cursor:pointer; font-family:'DM Sans',sans-serif; text-align:center; transition:all 0.15s; }
+.connect-btn:active { transform:scale(0.98); }
+.connect-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.sync-btn { background:var(--green-dim); border:1px solid rgba(74,222,128,0.25); border-radius:var(--radius-sm); padding:13px; font-size:14px; font-weight:500; color:var(--green); cursor:pointer; font-family:'DM Sans',sans-serif; text-align:center; transition:all 0.15s; }
+.sync-btn:active { transform:scale(0.98); }
+.sync-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.push-btn { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--radius-sm); padding:13px; font-size:14px; font-weight:500; color:var(--text); cursor:pointer; font-family:'DM Sans',sans-serif; text-align:center; }
+.sync-result { font-size:13px; color:var(--text2); text-align:center; font-family:'DM Mono',monospace; }
 
-  .app-title { font-size: 13px; font-weight: 500; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
-  .app-name { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; margin-top: 2px; }
+/* ── Reset ── */
+.reset-section { padding:24px 20px 0; text-align:center; }
+.reset-btn { font-size:12px; color:var(--text3); background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; text-decoration:underline; text-underline-offset:3px; }
 
-  .sync-dot {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text3);
-  }
+/* ── Toast ── */
+.toast { position:fixed; bottom:88px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border2); border-radius:24px; padding:10px 20px; font-size:13px; color:var(--text); transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events:none; z-index:100; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
 
-  .sync-dot .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--text3);
-    transition: background 0.4s;
-  }
-
-  .sync-dot.live .dot { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  /* Total card */
-  .total-card {
-    margin: 0 16px 20px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 22px;
-  }
-
-  .total-row { display: flex; justify-content: space-between; align-items: flex-start; }
-
-  .total-label { font-size: 12px; color: var(--text2); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
-
-  .total-amount {
-    font-family: 'DM Mono', monospace;
-    font-size: 38px;
-    font-weight: 500;
-    letter-spacing: -1px;
-    line-height: 1;
-    transition: color 0.3s;
-  }
-
-  .total-amount.ok { color: var(--green); }
-  .total-amount.warn { color: var(--yellow); }
-  .total-amount.over { color: var(--red); }
-
-  .total-meta { font-size: 13px; color: var(--text2); margin-top: 8px; }
-
-  .period-badge {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 11px;
-    color: var(--text2);
-    text-align: right;
-    line-height: 1.5;
-  }
-
-  /* Progress bar */
-  .total-bar { margin-top: 16px; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-  .total-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease, background 0.3s; }
-
-  /* Section label */
-  .section-label {
-    padding: 0 20px;
-    margin: 24px 0 12px;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text3);
-  }
-
-  /* Category cards */
-  .cat-list { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; }
-
-  .cat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 18px;
-    transition: border-color 0.2s;
-  }
-
-  .cat-card.editing { border-color: var(--border2); }
-
-  .cat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-
-  .cat-left { display: flex; flex-direction: column; gap: 3px; }
-  .cat-name { font-size: 15px; font-weight: 500; }
-  .cat-spent { font-size: 12px; color: var(--text2); }
-
-  .cat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-
-  .cat-remaining {
-    font-family: 'DM Mono', monospace;
-    font-size: 20px;
-    font-weight: 500;
-    transition: color 0.3s;
-  }
-
-  .cat-remaining.ok { color: var(--green); }
-  .cat-remaining.warn { color: var(--yellow); }
-  .cat-remaining.over { color: var(--red); }
-
-  .cat-budget-label { font-size: 11px; color: var(--text3); }
-
-  .cat-bar { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
-  .cat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease, background 0.3s; }
-  .cat-bar-fill.ok { background: var(--green); }
-  .cat-bar-fill.warn { background: var(--yellow); }
-  .cat-bar-fill.over { background: var(--red); }
-
-  /* Input row */
-  .cat-input-row { display: flex; gap: 8px; }
-
-  .cat-input-row input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    font-size: 15px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    outline: none;
-    transition: border-color 0.15s;
-    -webkit-appearance: none;
-  }
-
-  .cat-input-row input::placeholder { color: var(--text3); }
-  .cat-input-row input:focus { border-color: var(--border2); }
-
-  .add-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .add-btn:active { transform: scale(0.96); background: var(--border); }
-
-  .cat-last { font-size: 11px; color: var(--text3); margin-top: 8px; font-family: 'DM Mono', monospace; }
-
-  /* Edit budget panel */
-  .edit-budget-row {
-    margin-top: 10px;
-    display: none;
-    flex-direction: column;
-    gap: 8px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  .edit-budget-row.open { display: flex; }
-
-  .edit-budget-label { font-size: 11px; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; }
-
-  .edit-budget-controls { display: flex; gap: 8px; }
-
-  .edit-budget-controls input {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 9px 12px;
-    font-size: 15px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    outline: none;
-    -webkit-appearance: none;
-  }
-
-  .edit-budget-controls input:focus { border-color: var(--border2); }
-
-  .save-btn {
-    background: var(--green-dim);
-    border: 1px solid rgba(74,222,128,0.25);
-    border-radius: var(--radius-sm);
-    padding: 9px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--green);
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    transition: all 0.15s;
-  }
-
-  .save-btn:active { transform: scale(0.96); }
-
-  .cancel-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 9px 12px;
-    font-size: 13px;
-    color: var(--text2);
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-  }
-
-  .edit-toggle {
-    font-size: 11px;
-    color: var(--text3);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    padding: 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .edit-toggle:hover { color: var(--text2); }
-
-  /* Activity log */
-  .log-list { display: flex; flex-direction: column; gap: 0; padding: 0 16px; }
-
-  .log-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 4px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .log-item:last-child { border-bottom: none; }
-
-  .log-cat { font-size: 14px; font-weight: 500; }
-  .log-meta { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: 'DM Mono', monospace; }
-
-  .log-amount {
-    font-family: 'DM Mono', monospace;
-    font-size: 15px;
-    color: var(--red);
-    font-weight: 500;
-  }
-
-  /* Reset */
-  .reset-section { padding: 24px 20px 0; text-align: center; }
-
-  .reset-btn {
-    font-size: 12px;
-    color: var(--text3);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .reset-btn:hover { color: var(--text2); }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    border-radius: 24px;
-    padding: 10px 20px;
-    font-size: 13px;
-    color: var(--text);
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    pointer-events: none;
-    z-index: 100;
-    white-space: nowrap;
-  }
-
-  .toast.show { transform: translateX(-50%) translateY(0); }
-
-  /* Who badge */
-  .who-badge {
-    display: inline-block;
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 20px;
-    font-weight: 500;
-    margin-left: 4px;
-  }
-
-  .who-badge.lane { background: rgba(110,231,183,0.15); color: var(--accent); }
-  .who-badge.tori { background: rgba(251,191,36,0.15); color: var(--yellow); }
+/* ── Tabs content ── */
+.tab-content { display:none; }
+.tab-content.active { display:block; }
 </style>
 </head>
 <body>
 
-<!-- Name selection screen -->
+<!-- Name screen -->
 <div id="name-screen">
   <div>
     <div style="font-size:13px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-bottom:10px">Lewis Family Budget</div>
@@ -417,49 +181,118 @@
 
 <!-- Main app -->
 <div id="app">
-  <div class="app-header">
-    <div>
-      <div class="app-title">Lewis Family</div>
-      <div class="app-name" id="app-name-display">Budget</div>
-    </div>
-    <div class="sync-dot" id="sync-indicator">
-      <div class="dot"></div>
-      <span id="sync-label">Connecting…</span>
-    </div>
-  </div>
 
-  <!-- Total card -->
-  <div class="total-card">
-    <div class="total-row">
+  <!-- Tab: Budget -->
+  <div class="tab-content active" id="tab-budget">
+    <div class="app-header">
       <div>
-        <div class="total-label">Remaining</div>
-        <div class="total-amount ok" id="total-amount">$0</div>
-        <div class="total-meta" id="total-meta"></div>
+        <div class="app-title">Lewis Family</div>
+        <div class="app-name" id="app-name-display">Budget</div>
       </div>
-      <div class="period-badge" id="period-badge"></div>
+      <div class="sync-dot" id="sync-indicator">
+        <div class="dot"></div>
+        <span id="sync-label">Connecting…</span>
+      </div>
     </div>
-    <div class="total-bar">
-      <div class="total-bar-fill" id="total-bar-fill" style="width:0%;background:var(--green)"></div>
+
+    <div class="total-card">
+      <div class="total-row">
+        <div>
+          <div class="total-label">Remaining</div>
+          <div class="total-amount ok" id="total-amount">$0</div>
+          <div class="total-meta" id="total-meta"></div>
+        </div>
+        <div class="period-badge" id="period-badge"></div>
+      </div>
+      <div class="total-bar">
+        <div class="total-bar-fill" id="total-bar-fill" style="width:0%;background:var(--green)"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Categories</div>
+    <div class="cat-list" id="cat-list"></div>
+
+    <div class="section-label" style="margin-top:28px">Recent activity</div>
+    <div class="log-list" id="log-list"></div>
+
+    <div class="reset-section">
+      <button class="reset-btn" onclick="resetPeriod()">Reset for new pay period</button>
     </div>
   </div>
 
-  <div class="section-label">Categories</div>
-  <div class="cat-list" id="cat-list"></div>
+  <!-- Tab: Review -->
+  <div class="tab-content" id="tab-review">
+    <div class="app-header">
+      <div>
+        <div class="app-title">Lewis Family</div>
+        <div class="app-name">Review</div>
+      </div>
+    </div>
+    <div style="padding:0 20px 16px;font-size:13px;color:var(--text2);line-height:1.6;">
+      These transactions couldn't be auto-categorized. Tap a category to assign — we'll remember it for next time.
+    </div>
+    <div class="review-section" id="review-list"></div>
+  </div>
 
-  <div class="section-label" style="margin-top:28px">Recent activity</div>
-  <div class="log-list" id="log-list"></div>
+  <!-- Tab: Bank -->
+  <div class="tab-content" id="tab-bank">
+    <div class="app-header">
+      <div>
+        <div class="app-title">Lewis Family</div>
+        <div class="app-name">Bank Sync</div>
+      </div>
+    </div>
+    <div class="bank-section">
+      <div class="bank-card">
+        <h3>Synergy Federal Credit Union</h3>
+        <div class="bank-status" id="bank-status">
+          <div class="status-dot disconnected" id="bank-dot"></div>
+          <span id="bank-status-label">Not connected</span>
+        </div>
+        <p>Connect your bank account to automatically import transactions. We'll sort them into categories and only ask you to review anything we're unsure about.</p>
+        <button class="connect-btn" id="connect-btn" onclick="connectBank()">Connect Bank Account</button>
+        <button class="sync-btn" id="sync-btn" onclick="syncTransactions()" style="display:none">Sync Transactions Now</button>
+        <div class="sync-result" id="sync-result"></div>
 
-  <div class="reset-section">
-    <button class="reset-btn" onclick="resetPeriod()">Reset for new pay period</button>
+        <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
+          <p style="margin-bottom:10px;">Enable push notifications so both phones get alerted when something needs review.</p>
+          <button class="push-btn" id="push-btn" onclick="enablePush()">Enable Notifications</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('budget', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Budget
+    </button>
+    <button class="tab-btn" id="review-tab-btn" onclick="switchTab('review', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Review
+      <span class="tab-badge" id="review-badge" style="display:none">0</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('bank', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Bank
+    </button>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- Plaid Link SDK -->
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// ── Config ────────────────────────────────────────────────────────────────────
+// IMPORTANT: Update this URL once your Railway server is deployed
+const SERVER_URL = 'https://lewis-budget-server-production.up.railway.app';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAdO1Nqfuc7e8Fp8MgJP3Dd5hXymT3-fkc",
@@ -472,23 +305,28 @@ const firebaseConfig = {
   measurementId: "G-X7FHFGEB70"
 };
 
+const DEFAULT_CATEGORIES = [
+  { id: 'groceries',     name: 'Groceries',      budget: 400, icon: '🛒' },
+  { id: 'eating_out',    name: 'Eating Out',      budget: 200, icon: '🍔' },
+  { id: 'coffee',        name: 'Coffee',          budget:  60, icon: '☕' },
+  { id: 'fun_money',     name: 'Fun Money',       budget: 150, icon: '🎯' },
+  { id: 'car_payments',  name: 'Car Payments',    budget:   0, icon: '🚗' },
+  { id: 'subscriptions', name: 'Subscriptions',   budget:   0, icon: '📱' },
+  { id: 'utility_bills', name: 'Utility Bills',   budget:   0, icon: '💡' },
+  { id: 'shopping',      name: 'Shopping',        budget: 100, icon: '🛍️' },
+];
+
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
 const budgetRef = ref(db, 'budget');
-
-const DEFAULT_CATEGORIES = [
-  { id: 'groceries',  name: 'Groceries',       budget: 400 },
-  { id: 'eating_out', name: 'Going out to eat', budget: 200 },
-  { id: 'fun',        name: 'Fun money',         budget: 150 },
-  { id: 'clothes',    name: 'Clothes',           budget: 100 },
-];
+const reviewRef = ref(db, 'review_queue');
 
 let currentUser = null;
 let state = null;
+let reviewQueue = {};
 let openEditId = null;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) {
   const abs = Math.abs(Math.round(n)).toLocaleString();
   return (n < 0 ? '-$' : '$') + abs;
@@ -506,10 +344,6 @@ function statusColor(s) {
 
 function getPeriodLabel() {
   const now = new Date();
-  const d = now.getDate();
-  const m = now.toLocaleString('default', { month: 'short' });
-  const y = now.getFullYear();
-  // Wife pays biweekly from Apr 24 — find current window
   const base = new Date(2026, 3, 24);
   const msDay = 86400000 * 14;
   let start = new Date(base);
@@ -523,11 +357,19 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  setTimeout(() => t.classList.remove('show'), 2400);
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+// ── Tab switching ─────────────────────────────────────────────────────────────
+window.switchTab = function(tab, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+  if (tab === 'review') renderReview();
+};
 
+// ── Render budget tab ─────────────────────────────────────────────────────────
 function render() {
   if (!state) return;
 
@@ -538,10 +380,9 @@ function render() {
   const totalBudget = cats.reduce((s, c) => s + c.budget, 0);
   const totalSpent = cats.reduce((s, c) => s + (spent[c.id] || 0), 0);
   const totalRemaining = totalBudget - totalSpent;
-  const totalPct = totalSpent / totalBudget;
+  const totalPct = totalBudget > 0 ? totalSpent / totalBudget : 0;
   const totalStatus = status(totalPct);
 
-  // Total card
   const ta = document.getElementById('total-amount');
   ta.textContent = fmt(totalRemaining);
   ta.className = 'total-amount ' + totalStatus;
@@ -554,15 +395,12 @@ function render() {
   // Category cards
   const container = document.getElementById('cat-list');
   container.innerHTML = '';
-
   cats.forEach(cat => {
     const catSpent = spent[cat.id] || 0;
     const remaining = cat.budget - catSpent;
-    const pct = catSpent / cat.budget;
+    const pct = cat.budget > 0 ? catSpent / cat.budget : 0;
     const s = status(pct);
     const isEditing = openEditId === cat.id;
-
-    // Last log entry for this cat
     const catLogs = Object.values(log).filter(l => l.cat === cat.id).sort((a,b) => b.ts - a.ts);
     const lastEntry = catLogs[0];
 
@@ -571,25 +409,22 @@ function render() {
     card.innerHTML = `
       <div class="cat-top">
         <div class="cat-left">
-          <div class="cat-name">${cat.name}</div>
-          <div class="cat-spent">$${Math.round(catSpent)} spent</div>
+          <div class="cat-name">${cat.icon || ''} ${cat.name}</div>
+          <div class="cat-spent">$${Math.round(catSpent)} spent · budget $${cat.budget}</div>
         </div>
         <div class="cat-right">
           <div class="cat-remaining ${s}">${fmt(remaining)}</div>
           <div style="display:flex;align-items:center;gap:6px">
-            <span class="cat-budget-label">of $${cat.budget}</span>
             <button class="edit-toggle" onclick="window._toggleEdit('${cat.id}')">${isEditing ? 'done' : 'edit budget'}</button>
           </div>
         </div>
       </div>
-      <div class="cat-bar">
-        <div class="cat-bar-fill ${s}" style="width:${Math.min(pct*100,100).toFixed(1)}%"></div>
-      </div>
+      ${cat.budget > 0 ? `<div class="cat-bar"><div class="cat-bar-fill ${s}" style="width:${Math.min(pct*100,100).toFixed(1)}%"></div></div>` : '<div style="height:14px"></div>'}
 
       <div class="edit-budget-row ${isEditing ? 'open' : ''}" id="edit-${cat.id}">
         <div class="edit-budget-label">Change budget limit</div>
         <div class="edit-budget-controls">
-          <input type="number" id="budget-inp-${cat.id}" value="${cat.budget}" min="1" step="1" inputmode="decimal" />
+          <input type="number" id="budget-inp-${cat.id}" value="${cat.budget}" min="0" step="1" inputmode="decimal" />
           <button class="save-btn" onclick="window._saveBudget('${cat.id}')">Save</button>
           <button class="cancel-btn" onclick="window._toggleEdit('${cat.id}')">✕</button>
         </div>
@@ -599,7 +434,7 @@ function render() {
         <input type="number" id="inp-${cat.id}" placeholder="$ amount" min="0" step="0.01" inputmode="decimal" />
         <button class="add-btn" onclick="window._addExpense('${cat.id}')">Add</button>
       </div>
-      ${lastEntry ? `<div class="cat-last">${lastEntry.who} · $${parseFloat(lastEntry.amount).toFixed(2)} · ${lastEntry.time}</div>` : ''}
+      ${lastEntry ? `<div class="cat-last">${lastEntry.who} · $${parseFloat(lastEntry.amount).toFixed(2)} · ${lastEntry.time}${lastEntry.merchant ? ' · ' + lastEntry.merchant : ''}</div>` : ''}
     `;
     container.appendChild(card);
 
@@ -613,17 +448,19 @@ function render() {
 
   // Log
   const logContainer = document.getElementById('log-list');
-  const entries = Object.values(log).sort((a,b) => b.ts - a.ts).slice(0, 10);
+  const entries = Object.values(log).sort((a,b) => b.ts - a.ts).slice(0, 12);
   if (entries.length === 0) {
     logContainer.innerHTML = '<div style="padding:16px 4px;font-size:13px;color:var(--text3)">No entries yet this period</div>';
   } else {
+    const cats2 = state.categories || DEFAULT_CATEGORIES;
     logContainer.innerHTML = entries.map(l => {
-      const cat = cats.find(c => c.id === l.cat);
-      const whoClass = l.who === 'Lane' ? 'lane' : 'tori';
+      const cat = cats2.find(c => c.id === l.cat);
+      const whoLower = (l.who || '').toLowerCase();
+      const whoClass = whoLower === 'lane' ? 'lane' : whoLower === 'tori' ? 'tori' : whoLower === 'auto' ? 'auto' : 'reviewed';
       return `<div class="log-item">
         <div>
-          <div class="log-cat">${cat ? cat.name : l.cat} <span class="who-badge ${whoClass}">${l.who}</span></div>
-          <div class="log-meta">${l.time}</div>
+          <div class="log-cat">${cat ? (cat.icon + ' ' + cat.name) : l.cat} <span class="who-badge ${whoClass}">${l.who}</span></div>
+          <div class="log-meta">${l.time}${l.merchant ? ' · ' + l.merchant : ''}</div>
         </div>
         <div class="log-amount">-$${parseFloat(l.amount).toFixed(2)}</div>
       </div>`;
@@ -631,14 +468,51 @@ function render() {
   }
 }
 
-// ── Firebase write ────────────────────────────────────────────────────────────
+// ── Render review tab ─────────────────────────────────────────────────────────
+function renderReview() {
+  const container = document.getElementById('review-list');
+  const items = Object.entries(reviewQueue);
 
-async function writeState(newState) {
-  await set(budgetRef, newState);
+  // Update badge
+  const badge = document.getElementById('review-badge');
+  if (items.length > 0) {
+    badge.textContent = items.length;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="empty-review">
+      ✅ All caught up!<br/>
+      <span style="font-size:12px">No transactions need review right now.<br/>New ones will show up here after a bank sync.</span>
+    </div>`;
+    return;
+  }
+
+  const cats = (state && state.categories) || DEFAULT_CATEGORIES;
+  container.innerHTML = items.map(([key, item]) => `
+    <div class="review-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="review-merchant">${item.merchant || item.name}</div>
+          <div class="review-date">${item.date}</div>
+        </div>
+        <div class="review-amount">$${parseFloat(item.amount).toFixed(2)}</div>
+      </div>
+      <div class="review-label">Pick a category — we'll remember this merchant</div>
+      <div class="cat-picker">
+        ${cats.map(cat => `
+          <button class="cat-pick-btn" onclick="window._approveReview('${key}','${item.plaid_id}','${(item.merchant||item.name).replace(/'/g,"\\'")}',${item.amount},'${item.date}','${cat.id}')">
+            ${cat.icon} ${cat.name}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
-
 window._toggleEdit = function(catId) {
   openEditId = openEditId === catId ? null : catId;
   render();
@@ -647,13 +521,13 @@ window._toggleEdit = function(catId) {
 window._saveBudget = async function(catId) {
   const inp = document.getElementById('budget-inp-' + catId);
   const val = parseInt(inp.value);
-  if (!val || val <= 0) { inp.focus(); return; }
+  if (val === undefined || val < 0) { inp.focus(); return; }
   const newState = JSON.parse(JSON.stringify(state));
   const cat = newState.categories.find(c => c.id === catId);
   if (cat) {
     cat.budget = val;
     openEditId = null;
-    await writeState(newState);
+    await set(budgetRef, newState);
     showToast('Budget updated');
   }
 };
@@ -662,30 +536,35 @@ window._addExpense = async function(catId) {
   const inp = document.getElementById('inp-' + catId);
   const val = parseFloat(inp.value);
   if (!val || val <= 0) { inp.focus(); return; }
-
   const newState = JSON.parse(JSON.stringify(state));
   if (!newState.spent) newState.spent = {};
   if (!newState.log) newState.log = {};
-
   newState.spent[catId] = (newState.spent[catId] || 0) + val;
-
   const now = new Date();
-  const timeStr = now.toLocaleDateString('en-US', {month:'short',day:'numeric'}) + ' ' +
-                  now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const key = 'e' + Date.now();
-  newState.log[key] = {
-    cat: catId,
-    amount: val.toFixed(2),
-    who: currentUser,
-    time: timeStr,
-    ts: Date.now()
-  };
-
+  const timeStr = now.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const key = 'e' + Date.now() + Math.random().toString(36).substr(2,5);
+  newState.log[key] = { cat: catId, amount: val.toFixed(2), who: currentUser, time: timeStr, ts: Date.now() };
   inp.value = '';
-  await writeState(newState);
-
+  await set(budgetRef, newState);
   const cat = state.categories.find(c => c.id === catId);
   showToast(`Added $${val.toFixed(2)} to ${cat ? cat.name : catId}`);
+};
+
+window._approveReview = async function(reviewKey, plaidId, merchant, amount, date, catId) {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/review/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_key: reviewKey, plaid_id: plaidId, merchant, amount, date, catId })
+    });
+    if (res.ok) {
+      showToast('✓ Categorized & remembered!');
+    } else {
+      showToast('Error saving — try again');
+    }
+  } catch(e) {
+    showToast('Connection error');
+  }
 };
 
 window.resetPeriod = async function() {
@@ -693,59 +572,164 @@ window.resetPeriod = async function() {
   const newState = JSON.parse(JSON.stringify(state));
   newState.spent = {};
   newState.log = {};
-  await writeState(newState);
+  await set(budgetRef, newState);
   showToast('Period reset!');
 };
 
-// ── User selection ────────────────────────────────────────────────────────────
+// ── Bank connect ──────────────────────────────────────────────────────────────
+window.connectBank = async function() {
+  const btn = document.getElementById('connect-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  try {
+    const res = await fetch(`${SERVER_URL}/api/plaid/create-link-token`, { method: 'POST' });
+    const { link_token } = await res.json();
 
-window.setUser = function(name) {
-  currentUser = name;
-  localStorage.setItem('lewis_budget_user', name);
-  document.getElementById('name-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  document.getElementById('app-name-display').textContent = `Hey, ${name}`;
-  startSync();
+    const handler = Plaid.create({
+      token: link_token,
+      onSuccess: async (public_token, metadata) => {
+        const exRes = await fetch(`${SERVER_URL}/api/plaid/exchange-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ public_token })
+        });
+        if (exRes.ok) {
+          localStorage.setItem('lewis_bank_connected', 'true');
+          updateBankStatus(true);
+          showToast('✓ Bank connected!');
+        }
+      },
+      onExit: () => {
+        btn.disabled = false;
+        btn.textContent = 'Connect Bank Account';
+      }
+    });
+    handler.open();
+  } catch(e) {
+    showToast('Could not connect — is server running?');
+    btn.disabled = false;
+    btn.textContent = 'Connect Bank Account';
+  }
 };
 
-// ── Firebase sync ─────────────────────────────────────────────────────────────
+window.syncTransactions = async function() {
+  const btn = document.getElementById('sync-btn');
+  const result = document.getElementById('sync-result');
+  btn.disabled = true;
+  btn.textContent = 'Syncing…';
+  result.textContent = '';
+  try {
+    const res = await fetch(`${SERVER_URL}/api/plaid/sync`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      result.textContent = `✓ ${data.auto_posted} auto-posted · ${data.needs_review} need review`;
+      if (data.needs_review > 0) showToast(`${data.needs_review} transactions need review`);
+      else showToast('All synced!');
+    } else {
+      result.textContent = 'Sync failed: ' + data.error;
+    }
+  } catch(e) {
+    result.textContent = 'Connection error';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Sync Transactions Now';
+};
 
+function updateBankStatus(connected) {
+  document.getElementById('bank-dot').className = 'status-dot ' + (connected ? 'connected' : 'disconnected');
+  document.getElementById('bank-status-label').textContent = connected ? 'Connected — Synergy Federal Credit Union' : 'Not connected';
+  document.getElementById('connect-btn').style.display = connected ? 'none' : 'block';
+  document.getElementById('sync-btn').style.display = connected ? 'block' : 'none';
+}
+
+// ── Push notifications ────────────────────────────────────────────────────────
+window.enablePush = async function() {
+  const btn = document.getElementById('push-btn');
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { showToast('Notifications blocked'); return; }
+
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const vapidRes = await fetch(`${SERVER_URL}/api/push/vapid-public-key`);
+    const { key } = await vapidRes.json();
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: key
+    });
+
+    await fetch(`${SERVER_URL}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, user: currentUser })
+    });
+
+    btn.textContent = '✓ Notifications enabled';
+    btn.style.color = 'var(--green)';
+    showToast('Notifications enabled!');
+  } catch(e) {
+    showToast('Could not enable notifications');
+  }
+};
+
+// ── Firebase listeners ────────────────────────────────────────────────────────
 function startSync() {
   const syncEl = document.getElementById('sync-indicator');
   const syncLabel = document.getElementById('sync-label');
 
   onValue(budgetRef, (snapshot) => {
     let data = snapshot.val();
-
     if (!data) {
-      // First time — initialize with defaults
-      data = {
-        categories: DEFAULT_CATEGORIES,
-        spent: {},
-        log: {}
-      };
+      data = { categories: DEFAULT_CATEGORIES, spent: {}, log: {} };
       set(budgetRef, data);
     }
-
-    // Ensure categories exist
     if (!data.categories) data.categories = DEFAULT_CATEGORIES;
-
     state = data;
     syncEl.className = 'sync-dot live';
     syncLabel.textContent = 'Live';
     render();
-  }, (error) => {
+  }, () => {
     syncEl.className = 'sync-dot';
     syncLabel.textContent = 'Offline';
   });
+
+  onValue(reviewRef, (snapshot) => {
+    reviewQueue = snapshot.val() || {};
+    const badge = document.getElementById('review-badge');
+    const count = Object.keys(reviewQueue).length;
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+    // Re-render review tab if it's active
+    if (document.getElementById('tab-review').classList.contains('active')) renderReview();
+  });
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── User init ─────────────────────────────────────────────────────────────────
+window.setUser = function(name) {
+  currentUser = name;
+  localStorage.setItem('lewis_budget_user', name);
+  document.getElementById('name-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('app-name-display').textContent = `Hey, ${name}`;
+
+  if (localStorage.getItem('lewis_bank_connected')) updateBankStatus(true);
+
+  // Check URL for tab redirect from notification
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('tab') === 'review') {
+    const reviewBtn = document.querySelectorAll('.tab-btn')[1];
+    window.switchTab('review', reviewBtn);
+  }
+
+  startSync();
+};
 
 const savedUser = localStorage.getItem('lewis_budget_user');
-if (savedUser) {
-  window.setUser(savedUser);
-}
+if (savedUser) window.setUser(savedUser);
 </script>
 </body>
 </html>
