@@ -243,15 +243,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="bank-status"><div class="status-dot disconnected" id="bank-dot"></div><span id="bank-status-label">Not connected</span></div>
         <p>Connect your bank to automatically import and categorize transactions.</p>
         <button class="connect-btn" id="connect-btn" onclick="connectBank()">Connect Bank Account</button>
-        <button class="sync-btn" id="load-accounts-btn" onclick="loadAccounts()" style="display:none">Load My Accounts</button>
-
-        <!-- Account picker — shown after connecting -->
-        <div id="account-picker-section" style="display:none;flex-direction:column;gap:10px;">
-          <div style="font-size:13px;color:var(--text2);line-height:1.6;">Select which account to track. Only transactions from this account will be imported.</div>
-          <div id="account-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
-
-        <button class="sync-btn" id="sync-btn" onclick="syncTransactions()" style="display:none">Sync Transactions Now</button>
+        <button class="sync-btn" id="sync-btn" onclick="syncTransactions()">Sync Transactions Now</button>
         <div class="sync-result" id="sync-result"></div>
       </div>
       <div class="bank-card">
@@ -644,8 +636,7 @@ window.connectBank = async function() {
         if(er.ok){
           localStorage.setItem('lewis_bank_connected','true');
           updateBankStatus(true);
-          showToast('✓ Bank connected!');
-          await loadAccounts();
+          showToast('✓ Bank connected! Hit Sync to import transactions.');
         }
       },
       onExit:()=>{btn.disabled=false;btn.textContent='Connect Bank Account';}
@@ -673,7 +664,7 @@ function updateBankStatus(connected) {
   document.getElementById('bank-dot').className='status-dot '+(connected?'connected':'disconnected');
   document.getElementById('bank-status-label').textContent=connected?'Connected — Synergy Federal Credit Union':'Not connected';
   document.getElementById('connect-btn').style.display=connected?'none':'block';
-  document.getElementById('load-accounts-btn').style.display=connected?'block':'none';
+  document.getElementById('sync-btn').style.display=connected?'block':'none';
 }
 
 async function loadAccounts() {
@@ -762,14 +753,12 @@ function startSync() {
     if(document.getElementById('tab-review').classList.contains('active')) renderReview();
   });
 
-  // Check Firebase directly for bank connection — don't rely on Plaid callback
+  // Check Firebase for existing bank connection
   const privateRef = ref(db, 'private/plaid_access_token');
   onValue(privateRef, (snapshot) => {
-    const token = snapshot.val();
-    if(token) {
+    if(snapshot.val()) {
       localStorage.setItem('lewis_bank_connected', 'true');
       updateBankStatus(true);
-      loadAccounts();
     }
   });
 }
@@ -799,7 +788,7 @@ window.setUser = function(name) {
   document.getElementById('app').style.display='block';
   document.getElementById('app-name-display').textContent=`Hey, ${name}`;
   document.getElementById('settings-user-label').textContent=name;
-  if(localStorage.getItem('lewis_bank_connected')) { updateBankStatus(true); loadAccounts(); }
+  if(localStorage.getItem('lewis_bank_connected')) { updateBankStatus(true); }
   const params=new URLSearchParams(window.location.search);
   if(params.get('tab')==='review') window.switchTab('review',document.getElementById('tbtn-review'));
   startSync();
