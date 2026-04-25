@@ -226,8 +226,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="app-header">
       <div><div class="app-title">Lewis Family</div><div class="app-name">Review</div></div>
     </div>
-    <div style="padding:0 20px 16px;font-size:13px;color:var(--text2);line-height:1.6;">
-      These transactions couldn't be auto-categorized. Tap a category to assign — we'll remember it next time.
+    <div style="padding:0 20px 12px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;flex:1;">These transactions couldn't be auto-categorized. Tap a category to assign — we'll remember it next time.</div>
+      <button id="clear-review-btn" onclick="clearAllReviews()" style="display:none;background:var(--red-dim);border:1px solid rgba(248,113,113,0.25);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:500;color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:12px;white-space:nowrap;">Clear all</button>
     </div>
     <div class="review-section" id="review-list"></div>
   </div>
@@ -598,6 +599,20 @@ window._approveReview = async function(reviewKey,plaidId,merchant,amount,date,ca
 };
 
 // ── Period reset / clear ──────────────────────────────────────────────────────
+window.clearAllReviews = function() {
+  const count = Object.keys(reviewQueue).length;
+  if(count === 0) return;
+  showConfirm(
+    'Clear review queue?',
+    `Are you sure you want to delete all ${count} transaction${count !== 1 ? 's' : ''} from the review queue? This cannot be undone.`,
+    'Delete all',
+    async () => {
+      await set(ref(db, 'review_queue'), null);
+      showToast(`${count} transaction${count !== 1 ? 's' : ''} cleared`);
+    }
+  );
+};
+
 window.resetPeriod = function() {
   showConfirm(
     'Reset pay period?',
