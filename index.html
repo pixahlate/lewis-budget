@@ -237,6 +237,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="bank-status"><div class="status-dot disconnected" id="bank-dot"></div><span id="bank-status-label">Not connected</span></div>
         <p>Connect your bank to automatically import and categorize transactions.</p>
         <button class="connect-btn" id="connect-btn" onclick="connectBank()">Connect Bank Account</button>
+
+        <!-- Account picker — shown after connecting -->
+        <div id="account-picker-section" style="display:none;flex-direction:column;gap:10px;">
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;">Select which account to track. Only transactions from this account will be imported.</div>
+          <div id="account-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
         <button class="sync-btn" id="sync-btn" onclick="syncTransactions()" style="display:none">Sync Transactions Now</button>
         <div class="sync-result" id="sync-result"></div>
       </div>
@@ -627,7 +634,12 @@ window.connectBank = async function() {
       token:link_token,
       onSuccess:async(public_token)=>{
         const er=await fetch(`${SERVER_URL}/api/plaid/exchange-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({public_token})});
-        if(er.ok){localStorage.setItem('lewis_bank_connected','true');updateBankStatus(true);showToast('✓ Bank connected!');}
+        if(er.ok){
+          localStorage.setItem('lewis_bank_connected','true');
+          updateBankStatus(true);
+          showToast('✓ Bank connected!');
+          await loadAccounts();
+        }
       },
       onExit:()=>{btn.disabled=false;btn.textContent='Connect Bank Account';}
     });
@@ -654,8 +666,48 @@ function updateBankStatus(connected) {
   document.getElementById('bank-dot').className='status-dot '+(connected?'connected':'disconnected');
   document.getElementById('bank-status-label').textContent=connected?'Connected — Synergy Federal Credit Union':'Not connected';
   document.getElementById('connect-btn').style.display=connected?'none':'block';
-  document.getElementById('sync-btn').style.display=connected?'block':'none';
 }
+
+async function loadAccounts() {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/plaid/accounts`);
+    const data = await res.json();
+    if(!data.accounts) return;
+
+    const selectedId = localStorage.getItem('lewis_selected_account');
+    const list = document.getElementById('account-list');
+    list.innerHTML = data.accounts.map(acc => `
+      <button onclick="window.selectAccount('${acc.id}','${(acc.name||'').replace(/'/g,"\'")}',this)"
+        style="background:${selectedId===acc.id?'var(--green-dim)':'var(--surface2)'};border:1px solid ${selectedId===acc.id?'rgba(74,222,128,0.3)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${acc.name}${acc.mask?' ····'+acc.mask:''}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;text-transform:capitalize">${acc.subtype||acc.type}</div>
+        ${selectedId===acc.id?'<div style="font-size:11px;color:var(--green);margin-top:4px;">✓ Selected</div>':''}
+      </button>
+    `).join('');
+
+    document.getElementById('account-picker-section').style.display='flex';
+    // Show sync button only if account is selected
+    document.getElementById('sync-btn').style.display = selectedId ? 'block' : 'none';
+  } catch(e) {
+    console.error('Load accounts error:', e);
+  }
+}
+
+window.selectAccount = async function(accountId, accountName, btn) {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/plaid/select-account`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({account_id: accountId})
+    });
+    if(res.ok) {
+      localStorage.setItem('lewis_selected_account', accountId);
+      showToast(`✓ Tracking: ${accountName}`);
+      document.getElementById('sync-btn').style.display='block';
+      await loadAccounts(); // refresh to show checkmark
+    }
+  } catch(e) { showToast('Error selecting account'); }
+};
 
 // ── Push ──────────────────────────────────────────────────────────────────────
 window.enablePush = async function() {
@@ -717,7 +769,7 @@ window.setUser = function(name) {
   document.getElementById('app').style.display='block';
   document.getElementById('app-name-display').textContent=`Hey, ${name}`;
   document.getElementById('settings-user-label').textContent=name;
-  if(localStorage.getItem('lewis_bank_connected')) updateBankStatus(true);
+  if(localStorage.getItem('lewis_bank_connected')) { updateBankStatus(true); loadAccounts(); }
   const params=new URLSearchParams(window.location.search);
   if(params.get('tab')==='review') window.switchTab('review',document.getElementById('tbtn-review'));
   startSync();
