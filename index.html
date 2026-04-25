@@ -158,6 +158,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface);border:1px solid var(--border2);border-radius:24px;padding:10px 20px;font-size:13px;font-weight:500;color:var(--text);pointer-events:none;z-index:200;white-space:nowrap;opacity:0;transition:opacity 0.25s,transform 0.25s;box-shadow:0 4px 20px rgba(0,0,0,0.25);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.confirm-overlay.open{opacity:1;pointer-events:all;}
+.confirm-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:24px 20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+.confirm-box h4{font-size:16px;font-weight:600;margin-bottom:8px;}
+.confirm-box p{font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:20px;}
+.confirm-btns{display:flex;gap:10px;}
+.confirm-cancel{flex:1;background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;font-size:15px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.confirm-delete{flex:1;background:var(--red-dim);border:1px solid rgba(248,113,113,0.3);border-radius:var(--radius-sm);padding:12px;font-size:15px;font-weight:500;color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;}
 
 .tab-content{display:none;}
 .tab-content.active{display:block;}
@@ -320,6 +328,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Custom confirm dialog (replaces iOS-blocked confirm()) -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <h4 id="confirm-title">Are you sure?</h4>
+    <p id="confirm-message">This action cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="confirm-delete" id="confirm-ok-btn" onclick="confirmOk()">Delete</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 <script type="module">
@@ -511,23 +531,24 @@ window.menuRename = function() {
 };
 
 window.menuDelete = function() {
-  // Save catId immediately before anything can null it
   const catId = menuCatId;
-  // Hide menu manually without nulling menuCatId yet
   document.getElementById('menu-overlay').style.display='none';
   document.getElementById('dropdown-menu').style.display='none';
   if(!catId) return;
   const cat = state.categories.find(c=>c.id===catId);
-  // Use setTimeout so iOS confirm doesn't get blocked by menu close animation
-  setTimeout(async () => {
-    if(!confirm('Delete "' + (cat?cat.name:'this category') + '"?\nSpending data for it will also be removed.')) return;
-    menuCatId = null;
-    const ns = JSON.parse(JSON.stringify(state));
-    ns.categories = ns.categories.filter(c=>c.id!==catId);
-    if(ns.spent) delete ns.spent[catId];
-    await set(budgetRef, ns);
-    showToast('Category deleted');
-  }, 50);
+  showConfirm(
+    'Delete "' + (cat?cat.name:'category') + '"?',
+    'Spending data for this category will also be removed.',
+    'Delete',
+    async () => {
+      menuCatId = null;
+      const ns = JSON.parse(JSON.stringify(state));
+      ns.categories = ns.categories.filter(c=>c.id!==catId);
+      if(ns.spent) delete ns.spent[catId];
+      await set(budgetRef, ns);
+      showToast('Category deleted');
+    }
+  );
 };
 
 window.openAddCategory = function() {
@@ -569,16 +590,28 @@ window._approveReview = async function(reviewKey,plaidId,merchant,amount,date,ca
 };
 
 // ── Period reset / clear ──────────────────────────────────────────────────────
-window.resetPeriod = async function() {
-  if(!confirm('Reset all spending for a new pay period?\nBudget limits will be kept.')) return;
-  const ns=JSON.parse(JSON.stringify(state));
-  ns.spent={}; ns.log={};
-  await set(budgetRef,ns); showToast('Period reset!');
+window.resetPeriod = function() {
+  showConfirm(
+    'Reset pay period?',
+    'All spending will be cleared. Budget limits will be kept.',
+    'Reset',
+    async () => {
+      const ns=JSON.parse(JSON.stringify(state));
+      ns.spent={}; ns.log={};
+      await set(budgetRef,ns); showToast('Period reset!');
+    }
+  );
 };
 
-window.clearAll = async function() {
-  if(!confirm('Delete ALL categories and spending data?\nThis cannot be undone.')) return;
-  await set(budgetRef,{categories:[],spent:{},log:{}}); showToast('All data cleared');
+window.clearAll = function() {
+  showConfirm(
+    'Clear everything?',
+    'All categories and spending data will be permanently deleted.',
+    'Clear all',
+    async () => {
+      await set(budgetRef,{categories:[],spent:{},log:{}}); showToast('All data cleared');
+    }
+  );
 };
 
 // ── Bank ──────────────────────────────────────────────────────────────────────
@@ -656,6 +689,24 @@ function startSync() {
     if(document.getElementById('tab-review').classList.contains('active')) renderReview();
   });
 }
+
+// ── Custom confirm ────────────────────────────────────────────────────────────
+let _confirmCallback = null;
+function showConfirm(title, message, okLabel, callback) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  document.getElementById('confirm-ok-btn').textContent = okLabel;
+  _confirmCallback = callback;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+window.closeConfirm = function() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  _confirmCallback = null;
+};
+window.confirmOk = function() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if(_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+};
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.setUser = function(name) {
