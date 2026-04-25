@@ -510,15 +510,24 @@ window.menuRename = function() {
   setTimeout(()=>document.getElementById('modal-cat-name').focus(),200);
 };
 
-window.menuDelete = async function() {
-  const catId=menuCatId; closeMenu();
+window.menuDelete = function() {
+  // Save catId immediately before anything can null it
+  const catId = menuCatId;
+  // Hide menu manually without nulling menuCatId yet
+  document.getElementById('menu-overlay').style.display='none';
+  document.getElementById('dropdown-menu').style.display='none';
   if(!catId) return;
-  const cat=state.categories.find(c=>c.id===catId);
-  if(!confirm(`Delete "${cat?cat.name:'this category'}"?\nSpending data for it will also be removed.`)) return;
-  const ns=JSON.parse(JSON.stringify(state));
-  ns.categories=ns.categories.filter(c=>c.id!==catId);
-  delete ns.spent[catId];
-  await set(budgetRef,ns); showToast('Category deleted');
+  const cat = state.categories.find(c=>c.id===catId);
+  // Use setTimeout so iOS confirm doesn't get blocked by menu close animation
+  setTimeout(async () => {
+    if(!confirm('Delete "' + (cat?cat.name:'this category') + '"?\nSpending data for it will also be removed.')) return;
+    menuCatId = null;
+    const ns = JSON.parse(JSON.stringify(state));
+    ns.categories = ns.categories.filter(c=>c.id!==catId);
+    if(ns.spent) delete ns.spent[catId];
+    await set(budgetRef, ns);
+    showToast('Category deleted');
+  }, 50);
 };
 
 window.openAddCategory = function() {
