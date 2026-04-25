@@ -742,6 +742,17 @@ function startSync() {
     if(count>0){badge.textContent=count;badge.style.display='flex';}else badge.style.display='none';
     if(document.getElementById('tab-review').classList.contains('active')) renderReview();
   });
+
+  // Check Firebase directly for bank connection — don't rely on Plaid callback
+  const privateRef = ref(db, 'private/plaid_access_token');
+  onValue(privateRef, (snapshot) => {
+    const token = snapshot.val();
+    if(token) {
+      localStorage.setItem('lewis_bank_connected', 'true');
+      updateBankStatus(true);
+      loadAccounts();
+    }
+  });
 }
 
 // ── Custom confirm ────────────────────────────────────────────────────────────
