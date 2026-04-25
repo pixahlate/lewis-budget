@@ -244,7 +244,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="bank-status"><div class="status-dot disconnected" id="bank-dot"></div><span id="bank-status-label">Not connected</span></div>
         <p>Connect your bank to automatically import and categorize transactions.</p>
         <button class="connect-btn" id="connect-btn" onclick="connectBank()">Connect Bank Account</button>
-        <button class="sync-btn" id="sync-btn" onclick="syncTransactions()">Sync Transactions Now</button>
+        <button class="sync-btn" id="refresh-sync-btn" onclick="refreshAndSync()">Refresh & Sync Now</button>
+        <button class="sync-btn" id="sync-btn" onclick="syncTransactions()" style="background:var(--surface2);border-color:var(--border);color:var(--text2);font-size:12px;padding:10px;">Manual sync only</button>
         <div class="sync-result" id="sync-result"></div>
       </div>
       <div class="bank-card">
@@ -662,6 +663,46 @@ window.connectBank = async function() {
     });
     handler.open();
   } catch(e){showToast('Could not connect to server');btn.disabled=false;btn.textContent='Connect Bank Account';}
+};
+
+window.refreshAndSync = async function() {
+  const btn = document.getElementById('refresh-sync-btn');
+  const result = document.getElementById('sync-result');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing from bank…';
+  result.textContent = '';
+  try {
+    // Step 1: Tell Plaid to fetch latest from bank
+    const refreshRes = await fetch(`${SERVER_URL}/api/plaid/refresh`);
+    const refreshData = await refreshRes.json();
+    if (!refreshData.success) {
+      result.textContent = 'Refresh failed: ' + refreshData.error;
+      btn.disabled = false;
+      btn.textContent = 'Refresh & Sync Now';
+      return;
+    }
+
+    // Step 2: Wait 15 seconds for Plaid to fetch from bank
+    btn.textContent = 'Fetching from bank… (15s)';
+    await new Promise(resolve => setTimeout(resolve, 15000));
+
+    // Step 3: Sync
+    btn.textContent = 'Syncing…';
+    const syncRes = await fetch(`${SERVER_URL}/api/plaid/sync`, { method: 'POST' });
+    const syncData = await syncRes.json();
+    if (syncData.success) {
+      result.textContent = `✓ ${syncData.auto_posted} auto-posted · ${syncData.needs_review} need review`;
+      if (syncData.needs_review > 0) showToast(`${syncData.needs_review} need review`);
+      else if (syncData.auto_posted > 0) showToast(`${syncData.auto_posted} transactions synced!`);
+      else showToast('All up to date!');
+    } else {
+      result.textContent = 'Sync failed: ' + syncData.error;
+    }
+  } catch(e) {
+    result.textContent = 'Connection error';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Refresh & Sync Now';
 };
 
 window.syncTransactions = async function() {
