@@ -226,9 +226,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="app-header">
       <div><div class="app-title">Lewis Family</div><div class="app-name">Review</div></div>
     </div>
-    <div style="padding:0 20px 12px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="padding:0 20px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <div style="font-size:13px;color:var(--text2);line-height:1.6;flex:1;">These transactions couldn't be auto-categorized. Tap a category to assign — we'll remember it next time.</div>
-      <button id="clear-review-btn" onclick="clearAllReviews()" style="display:none;background:var(--red-dim);border:1px solid rgba(248,113,113,0.25);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:500;color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;margin-left:12px;white-space:nowrap;">Clear all</button>
+      <button onclick="window.clearAllReviews()" style="flex-shrink:0;background:var(--red-dim);border:1px solid rgba(248,113,113,0.25);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;">Clear all</button>
     </div>
     <div class="review-section" id="review-list"></div>
   </div>
