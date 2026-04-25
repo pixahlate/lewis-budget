@@ -606,7 +606,11 @@ window.resetPeriod = function() {
     async () => {
       const ns=JSON.parse(JSON.stringify(state));
       ns.spent={}; ns.log={};
-      await set(budgetRef,ns); showToast('Period reset!');
+      // Save today as the new pay period start date
+      const today = new Date().toISOString().split('T')[0];
+      ns.period_start = today;
+      await set(budgetRef,ns);
+      showToast('Period reset! Tracking from ' + today);
     }
   );
 };
@@ -740,7 +744,14 @@ function startSync() {
   const syncEl=document.getElementById('sync-indicator'), syncLabel=document.getElementById('sync-label');
   onValue(budgetRef,(snapshot)=>{
     let data=snapshot.val();
-    if(!data){data={categories:[],spent:{},log:{}};set(budgetRef,data);}
+    if(!data){
+      data={categories:[],spent:{},log:{},period_start:'2026-04-24'};
+      set(budgetRef,data);
+    }
+    if(!data.period_start) {
+      data.period_start = '2026-04-24';
+      set(budgetRef, data);
+    }
     if(!data.categories) data.categories=[];
     state=data; syncEl.className='sync-dot live'; syncLabel.textContent='Live'; render();
   },()=>{syncEl.className='sync-dot';syncLabel.textContent='Offline';});
