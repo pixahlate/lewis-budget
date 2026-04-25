@@ -237,6 +237,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="bank-status"><div class="status-dot disconnected" id="bank-dot"></div><span id="bank-status-label">Not connected</span></div>
         <p>Connect your bank to automatically import and categorize transactions.</p>
         <button class="connect-btn" id="connect-btn" onclick="connectBank()">Connect Bank Account</button>
+        <button class="sync-btn" id="load-accounts-btn" onclick="loadAccounts()" style="display:none">Load My Accounts</button>
 
         <!-- Account picker — shown after connecting -->
         <div id="account-picker-section" style="display:none;flex-direction:column;gap:10px;">
@@ -666,30 +667,40 @@ function updateBankStatus(connected) {
   document.getElementById('bank-dot').className='status-dot '+(connected?'connected':'disconnected');
   document.getElementById('bank-status-label').textContent=connected?'Connected — Synergy Federal Credit Union':'Not connected';
   document.getElementById('connect-btn').style.display=connected?'none':'block';
+  document.getElementById('load-accounts-btn').style.display=connected?'block':'none';
 }
 
 async function loadAccounts() {
+  const loadBtn = document.getElementById('load-accounts-btn');
+  if(loadBtn) { loadBtn.textContent = 'Loading accounts…'; loadBtn.disabled = true; }
   try {
     const res = await fetch(`${SERVER_URL}/api/plaid/accounts`);
     const data = await res.json();
-    if(!data.accounts) return;
+
+    if(loadBtn) { loadBtn.style.display='none'; loadBtn.disabled=false; loadBtn.textContent='Load My Accounts'; }
+
+    if(!data.accounts || data.accounts.length === 0) {
+      showToast('No accounts found — try reconnecting');
+      return;
+    }
 
     const selectedId = localStorage.getItem('lewis_selected_account');
     const list = document.getElementById('account-list');
-    list.innerHTML = data.accounts.map(acc => `
-      <button onclick="window.selectAccount('${acc.id}','${(acc.name||'').replace(/'/g,"\'")}',this)"
-        style="background:${selectedId===acc.id?'var(--green-dim)':'var(--surface2)'};border:1px solid ${selectedId===acc.id?'rgba(74,222,128,0.3)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;">
+    list.innerHTML = data.accounts.map(acc => {
+      const isSelected = selectedId === acc.id;
+      return `<button onclick="window.selectAccount('${acc.id}','${(acc.name||'').replace(/'/g,"\'")}')"
+        style="background:${isSelected?'var(--green-dim)':'var(--surface2)'};border:1px solid ${isSelected?'rgba(74,222,128,0.3)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%;">
         <div style="font-size:14px;font-weight:500;color:var(--text)">${acc.name}${acc.mask?' ····'+acc.mask:''}</div>
         <div style="font-size:11px;color:var(--text2);margin-top:2px;text-transform:capitalize">${acc.subtype||acc.type}</div>
-        ${selectedId===acc.id?'<div style="font-size:11px;color:var(--green);margin-top:4px;">✓ Selected</div>':''}
-      </button>
-    `).join('');
+        ${isSelected?'<div style="font-size:11px;color:var(--green);margin-top:4px;">✓ Currently tracking</div>':''}
+      </button>`;
+    }).join('');
 
     document.getElementById('account-picker-section').style.display='flex';
-    // Show sync button only if account is selected
     document.getElementById('sync-btn').style.display = selectedId ? 'block' : 'none';
   } catch(e) {
-    console.error('Load accounts error:', e);
+    if(loadBtn) { loadBtn.disabled=false; loadBtn.textContent='Load My Accounts'; }
+    showToast('Could not load accounts — check connection');
   }
 }
 
