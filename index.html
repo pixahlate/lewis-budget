@@ -24,14 +24,9 @@ body.light {
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none;transition:background 0.2s,color 0.2s;}
 
-#name-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 24px;gap:32px;}
-#name-screen h1{font-size:28px;font-weight:600;letter-spacing:-0.5px;text-align:center;}
-#name-screen p{font-size:15px;color:var(--text2);text-align:center;line-height:1.6;}
-.name-options{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;}
-.name-btn{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:18px 24px;font-size:17px;font-weight:500;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;text-align:center;transition:all 0.15s;}
-.name-btn:active{border-color:var(--accent);color:var(--accent);}
 
-#app{display:none;max-width:480px;margin:0 auto;padding:0 0 72px;}
+
+#app{display:block;max-width:480px;margin:0 auto;padding:0 0 72px;}
 
 .tab-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:50;max-width:480px;margin:0 auto;}
 .tab-btn{flex:1;padding:10px 4px 18px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text3);font-size:9px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;transition:color 0.15s;position:relative;}
@@ -184,17 +179,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </head>
 <body>
 
-<div id="name-screen">
-  <div>
-    <div style="font-size:13px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-bottom:10px">Lewis Family Budget</div>
-    <h1>Who's using<br/>this device?</h1>
-  </div>
-  <p>This helps label your entries so you both know who added what.</p>
-  <div class="name-options">
-    <button class="name-btn" onclick="setUser('Lane')">Lane</button>
-    <button class="name-btn" onclick="setUser('Tori')">Tori</button>
-  </div>
-</div>
+
 
 <div id="app">
 
@@ -203,7 +188,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="app-header">
       <div>
         <div class="app-title">Lewis Family</div>
-        <div class="app-name" id="app-name-display">Budget</div>
+        <div class="app-name">Budget</div>
       </div>
       <div class="sync-dot" id="sync-indicator"><div class="dot"></div><span id="sync-label">Connecting…</span></div>
     </div>
@@ -281,12 +266,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <label class="toggle"><input type="checkbox" id="theme-toggle" onchange="toggleTheme(this.checked)"/><span class="toggle-slider"></span></label>
         </div>
       </div>
-      <div class="settings-card">
-        <div class="settings-row">
-          <div><div class="settings-label">Logged in as</div><div class="settings-sub" id="settings-user-label">—</div></div>
-          <button onclick="switchUser()" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;">Switch</button>
-        </div>
-      </div>
+
       <div class="settings-card">
         <div class="settings-row">
           <div><div class="settings-label danger-label">Reset pay period</div><div class="settings-sub">Clears spending, keeps budget limits</div></div>
@@ -556,6 +536,92 @@ function renderReview() {
   }
 
   renderRecategorize();
+}
+
+function renderRecategorize() {
+  if(!state) return;
+  const cats = state.categories || [];
+  const log = state.log || {};
+  const container = document.getElementById('recategorize-list');
+  if(!container) return;
+
+  const entries = Object.entries(log).sort((a,b) => b[1].ts - a[1].ts).slice(0, 30);
+
+  if(entries.length === 0) {
+    container.innerHTML = '<div style="padding:16px 20px;font-size:13px;color:var(--text3)">No transactions yet this period</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  entries.forEach(([logKey, l]) => {
+    const cat = cats.find(c => c.id === l.cat);
+    const row = document.createElement('div');
+    row.className = 'recat-item';
+    row.innerHTML =
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:14px;font-weight:500;color:var(--text);">' + (l.merchant || l.cat) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'DM Mono',monospace;">' + (cat ? cat.name : 'Unknown') + ' · ' + l.time + '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+        '<div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--red);">-$' + parseFloat(l.amount).toFixed(2) + '</div>' +
+        '<button class="recat-move-btn">Move</button>' +
+      '</div>';
+    row.querySelector('.recat-move-btn').addEventListener('click', function() {
+      openRecatModal(logKey, l, cat);
+    });
+    container.appendChild(row);
+  });
+}
+
+let recatTarget = null;
+
+function openRecatModal(logKey, entry, currentCat) {
+  recatTarget = { logKey, entry, currentCat };
+  const cats = (state && state.categories) || [];
+  document.getElementById('recat-txn-info').innerHTML =
+    '<strong>' + (entry.merchant || 'Transaction') + '</strong> · $' + parseFloat(entry.amount).toFixed(2) + '<br/>' +
+    'Currently in: <strong>' + (currentCat ? currentCat.name : 'Unknown') + '</strong>';
+
+  const list = document.getElementById('recat-cat-list');
+  list.innerHTML = '';
+  cats.forEach(cat => {
+    if(cat.id === entry.cat) return;
+    const btn = document.createElement('button');
+    btn.style.cssText = 'width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:"DM Sans",sans-serif;font-size:14px;font-weight:500;color:var(--text);margin-bottom:8px;';
+    btn.textContent = cat.name;
+    btn.addEventListener('click', () => moveTransaction(cat));
+    list.appendChild(btn);
+  });
+  document.getElementById('recat-modal').classList.add('open');
+}
+
+window.closeRecatModal = function() {
+  document.getElementById('recat-modal').classList.remove('open');
+  recatTarget = null;
+};
+
+async function moveTransaction(newCat) {
+  if(!recatTarget || !state) return;
+  const { logKey, entry, currentCat } = recatTarget;
+  closeRecatModal();
+  const ns = JSON.parse(JSON.stringify(state));
+  const amount = parseFloat(entry.amount);
+  if(currentCat && ns.spent[currentCat.id]) {
+    ns.spent[currentCat.id] = Math.max(0, (ns.spent[currentCat.id] || 0) - amount);
+  }
+  ns.spent[newCat.id] = (ns.spent[newCat.id] || 0) + amount;
+  if(ns.log[logKey]) { ns.log[logKey].cat = newCat.id; ns.log[logKey].who = 'Moved'; }
+  await set(budgetRef, ns);
+  if(entry.merchant) {
+    const merchantKey = entry.merchant.toLowerCase().trim().replace(/[.#$\/\[\]\s]/g, '_');
+    try {
+      await fetch(SERVER_URL + '/api/merchant/update', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ merchant_key: merchantKey, cat_id: newCat.id })
+      });
+    } catch(e) {}
+  }
+  showToast('Moved to ' + newCat.name);
 }
 
 // ── Category actions ──────────────────────────────────────────────────────────
@@ -1100,28 +1166,13 @@ window.savePlaidMapping = async function() {
 };
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-window.setUser = function(name) {
-  currentUser=name; localStorage.setItem('lewis_budget_user',name);
-  document.getElementById('name-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('app-name-display').textContent=`Hey, ${name}`;
-  document.getElementById('settings-user-label').textContent=name;
-  if(localStorage.getItem('lewis_bank_connected')) { updateBankStatus(true); }
-  const params=new URLSearchParams(window.location.search);
-  if(params.get('tab')==='review') window.switchTab('review',document.getElementById('tbtn-review'));
-  startSync();
-};
 
-window.switchUser = function() {
-  localStorage.removeItem('lewis_budget_user');
-  document.getElementById('app').style.display='none';
-  document.getElementById('name-screen').style.display='flex';
-};
 
 const savedTheme=localStorage.getItem('lewis_theme');
 if(savedTheme==='light'){document.body.classList.add('light');document.getElementById('theme-toggle').checked=true;}
-const savedUser=localStorage.getItem('lewis_budget_user');
-if(savedUser) window.setUser(savedUser);
+// Auto-start without user selection
+startSync();
+updateBankStatus(!!localStorage.getItem('lewis_bank_connected'));
 </script>
 </body>
 </html>
