@@ -386,7 +386,7 @@ const db = getDatabase(firebaseApp);
 const budgetRef = ref(db,'budget');
 const reviewRef = ref(db,'review_queue');
 
-let currentUser=null, state=null, reviewQueue={}, openEditId=null, menuCatId=null, modalMode=null;
+let state=null, reviewQueue={}, openEditId=null, menuCatId=null, modalMode=null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = n => (n<0?'-$':'$') + Math.abs(Math.round(n)).toLocaleString();
@@ -910,7 +910,7 @@ window.enablePush = async function() {
     const vapidRes=await fetch(`${SERVER_URL}/api/push/vapid-public-key`);
     const {key}=await vapidRes.json();
     const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
-    await fetch(`${SERVER_URL}/api/push/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub,user:currentUser})});
+    await fetch(`${SERVER_URL}/api/push/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub,user:'lewis-family'})});
     btn.textContent='✓ Notifications enabled'; btn.style.color='var(--green)';
     showToast('Notifications enabled!');
   } catch(e){showToast('Could not enable notifications');}
@@ -1166,13 +1166,22 @@ window.savePlaidMapping = async function() {
 };
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-
-
 const savedTheme=localStorage.getItem('lewis_theme');
 if(savedTheme==='light'){document.body.classList.add('light');document.getElementById('theme-toggle').checked=true;}
-// Auto-start without user selection
-startSync();
-updateBankStatus(!!localStorage.getItem('lewis_bank_connected'));
+
+// Auto-start — no user selection needed
+try {
+  startSync();
+} catch(e) {
+  console.error('startSync error:', e);
+}
+try {
+  if(localStorage.getItem('lewis_bank_connected')) updateBankStatus(true);
+} catch(e) {
+  console.error('updateBankStatus error:', e);
+}
+const params = new URLSearchParams(window.location.search);
+if(params.get('tab')==='review') window.switchTab('review', document.getElementById('tbtn-review'));
 </script>
 </body>
 </html>
