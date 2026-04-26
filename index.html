@@ -384,6 +384,7 @@ function showToast(msg) {
   if(toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
+window.showToast = showToast;
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 window.switchTab = function(tab, btn) {
@@ -910,7 +911,7 @@ function startSync() {
               spinner.classList.remove('spinning');
               indicator.classList.remove('loading','visible');
               indicator.style.transform = '';
-              showToast('✓ Synced!');
+              window.showToast('✓ Synced!');
             }, 15000);
           })
           .catch(() => {
