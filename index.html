@@ -519,15 +519,44 @@ function render() {
 
 // ── Review ────────────────────────────────────────────────────────────────────
 function renderReview() {
-  const container=document.getElementById('review-list');
-  const items=Object.entries(reviewQueue);
-  const badge=document.getElementById('review-badge');
-  if(items.length>0){badge.textContent=items.length;badge.style.display='flex';}
-  else badge.style.display='none';
-  if(items.length===0){
-    container.innerHTML='<div class="empty-state">✅ All caught up!<br/><span style="font-size:12px">No transactions need review right now.</span></div>';
-    return;
+  const container = document.getElementById('review-list');
+  const uncatSection = document.getElementById('uncategorized-section');
+  const items = Object.entries(reviewQueue);
+  const badge = document.getElementById('review-badge');
+
+  if (items.length > 0) {
+    badge.textContent = items.length;
+    badge.style.display = 'flex';
+    if (uncatSection) uncatSection.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+    if (uncatSection) uncatSection.style.display = 'none';
   }
+
+  const cats = (state && state.categories) || [];
+  if (items.length === 0) {
+    container.innerHTML = '';
+  } else {
+    container.innerHTML = items.map(([key, item]) => {
+      const m = (item.merchant || item.name || '').replace(/\/g, '').replace(/'/g, '');
+      return '<div class="review-card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+        '<div><div class="review-merchant">' + (item.merchant || item.name) + '</div>' +
+        '<div class="review-date">' + item.date + '</div></div>' +
+        '<div class="review-amount">$' + parseFloat(item.amount).toFixed(2) + '</div></div>' +
+        '<div class="review-label">Pick a category</div>' +
+        '<div class="cat-picker">' +
+        cats.map(cat =>
+          '<button class="cat-pick-btn" onclick="window._approveReview(\'' + key + '\',\'' +
+          (item.plaid_id||'') + '\',\'' + m + '\',' + item.amount + ',\'' +
+          item.date + '\',\'' + cat.id + '\')">' + cat.name + '</button>'
+        ).join('') +
+        '</div></div>';
+    }).join('');
+  }
+
+  renderRecategorize();
+}
   const cats=(state&&state.categories)||[];
   container.innerHTML=items.map(([key,item])=>`
     <div class="review-card">
