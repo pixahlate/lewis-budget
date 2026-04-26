@@ -1009,26 +1009,37 @@ function formatPlaidCatLabel(cat) {
   }).slice(1).join(' ');
 }
 
+let _selectedPlaidCats = [];
+
 function renderPlaidPicker(selectedCats) {
+  _selectedPlaidCats = selectedCats ? [...selectedCats] : [];
   const picker = document.getElementById('plaid-cat-picker');
   picker.innerHTML = '';
   PLAID_CATEGORIES.forEach(group => {
     const groupLabel = document.createElement('div');
-    groupLabel.style.cssText = 'font-size:11px;font-weight:600;color:var(--text2);padding:6px 4px 2px;';
+    groupLabel.style.cssText = 'font-size:11px;font-weight:600;color:var(--text2);padding:6px 4px 2px;letter-spacing:0.04em;';
     groupLabel.textContent = group.group;
     picker.appendChild(groupLabel);
     group.cats.forEach(cat => {
-      const isSelected = selectedCats && selectedCats.includes(cat);
-      const row = document.createElement('label');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text);' + (isSelected ? 'background:var(--green-dim);' : '');
-      row.innerHTML = `<input type="checkbox" value="${cat}" ${isSelected ? 'checked' : ''} style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0;"> ${formatPlaidCatLabel(cat)}`;
-      picker.appendChild(row);
+      const btn = document.createElement('button');
+      const isSelected = _selectedPlaidCats.includes(cat);
+      btn.setAttribute('data-plaid-cat', cat);
+      btn.style.cssText = `display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid ${isSelected ? 'rgba(74,222,128,0.4)' : 'transparent'};background:${isSelected ? 'var(--green-dim)' : 'transparent'};cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);text-align:left;`;
+      btn.innerHTML = `<span style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${isSelected ? 'var(--green)' : 'var(--border2)'};background:${isSelected ? 'var(--green)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${isSelected ? '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>${formatPlaidCatLabel(cat)}`;
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const idx = _selectedPlaidCats.indexOf(cat);
+        if(idx > -1) _selectedPlaidCats.splice(idx, 1);
+        else _selectedPlaidCats.push(cat);
+        renderPlaidPicker(_selectedPlaidCats);
+      });
+      picker.appendChild(btn);
     });
   });
 }
 
 function getSelectedPlaidCats() {
-  return Array.from(document.querySelectorAll('#plaid-cat-picker input:checked')).map(i => i.value);
+  return [..._selectedPlaidCats];
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
