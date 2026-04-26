@@ -310,11 +310,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 
 <!-- Add/Rename modal -->
-<div class="modal-overlay" id="cat-modal" onclick="e => { if(e.target===this) closeModal(); }">
-  <div class="modal">
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
     <h3 id="modal-title">Add category</h3>
     <input type="text" id="modal-cat-name" placeholder="Category name (e.g. Groceries)" maxlength="32" />
     <input type="number" id="modal-cat-budget" placeholder="Budget limit (e.g. 400)" min="0" step="1" inputmode="decimal" />
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Map to Plaid categories (select all that apply)</div>
+      <div id="plaid-cat-picker" style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;"></div>
+    </div>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeModal()">Cancel</button>
       <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmModal()">Add</button>
@@ -535,6 +539,7 @@ window.menuRename = function() {
   document.getElementById('modal-cat-name').value=cat.name;
   document.getElementById('modal-cat-budget').value=cat.budget||0;
   document.getElementById('modal-confirm-btn').textContent='Save';
+  renderPlaidPicker(cat.plaid_cats || []);
   document.getElementById('cat-modal').classList.add('open');
   setTimeout(()=>document.getElementById('modal-cat-name').focus(),200);
 };
@@ -567,6 +572,7 @@ window.openAddCategory = function() {
   document.getElementById('modal-cat-name').value='';
   document.getElementById('modal-cat-budget').value='';
   document.getElementById('modal-confirm-btn').textContent='Add';
+  renderPlaidPicker([]);
   document.getElementById('cat-modal').classList.add('open');
   setTimeout(()=>document.getElementById('modal-cat-name').focus(),200);
 };
@@ -578,13 +584,14 @@ window.confirmModal = async function() {
   const budget=parseInt(document.getElementById('modal-cat-budget').value)||0;
   if(!name){document.getElementById('modal-cat-name').focus();return;}
   const ns=JSON.parse(JSON.stringify(state));
+  const plaidCats = getSelectedPlaidCats();
   if(modalMode==='add'){
     if(!ns.categories) ns.categories=[];
-    ns.categories.push({id:genId(),name,budget});
+    ns.categories.push({id:genId(),name,budget,plaid_cats:plaidCats});
     await set(budgetRef,ns); showToast(`"${name}" added`);
   } else if(modalMode==='rename'&&menuCatId) {
     const cat=ns.categories.find(c=>c.id===menuCatId);
-    if(cat){cat.name=name;cat.budget=budget;}
+    if(cat){cat.name=name;cat.budget=budget;cat.plaid_cats=plaidCats;}
     await set(budgetRef,ns); showToast('Category updated');
   }
   closeModal();
@@ -847,6 +854,156 @@ window.confirmOk = function() {
   document.getElementById('confirm-overlay').classList.remove('open');
   if(_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
 };
+
+// ── Plaid category list ───────────────────────────────────────────────────────
+const PLAID_CATEGORIES = [
+  { group: '🍔 Food & Drink', cats: [
+    'FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR',
+    'FOOD_AND_DRINK_COFFEE',
+    'FOOD_AND_DRINK_FAST_FOOD',
+    'FOOD_AND_DRINK_GROCERIES',
+    'FOOD_AND_DRINK_RESTAURANT',
+    'FOOD_AND_DRINK_VENDING_MACHINES',
+    'FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK',
+  ]},
+  { group: '🎬 Entertainment', cats: [
+    'ENTERTAINMENT_CASINOS_AND_GAMBLING',
+    'ENTERTAINMENT_MUSIC_AND_AUDIO',
+    'ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS',
+    'ENTERTAINMENT_TV_AND_MOVIES',
+    'ENTERTAINMENT_VIDEO_GAMES',
+    'ENTERTAINMENT_OTHER_ENTERTAINMENT',
+  ]},
+  { group: '🏠 Home', cats: [
+    'HOME_IMPROVEMENT_FURNITURE',
+    'HOME_IMPROVEMENT_HARDWARE',
+    'HOME_IMPROVEMENT_LAWN_AND_GARDEN',
+    'HOME_IMPROVEMENT_SECURITY',
+    'HOME_IMPROVEMENT_OTHER_HOME_IMPROVEMENT',
+  ]},
+  { group: '💊 Medical', cats: [
+    'MEDICAL_DENTAL_CARE',
+    'MEDICAL_EYE_CARE',
+    'MEDICAL_NURSING_CARE',
+    'MEDICAL_PHARMACIES_AND_SUPPLEMENTS',
+    'MEDICAL_PRIMARY_CARE',
+    'MEDICAL_VETERINARY_SERVICES',
+    'MEDICAL_OTHER_MEDICAL',
+  ]},
+  { group: '🛍️ Shopping', cats: [
+    'GENERAL_MERCHANDISE_BOOKSTORES_AND_NEWSSTANDS',
+    'GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES',
+    'GENERAL_MERCHANDISE_CONVENIENCE_STORES',
+    'GENERAL_MERCHANDISE_DEPARTMENT_STORES',
+    'GENERAL_MERCHANDISE_DISCOUNT_STORES',
+    'GENERAL_MERCHANDISE_ELECTRONICS',
+    'GENERAL_MERCHANDISE_GIFTS_AND_NOVELTIES',
+    'GENERAL_MERCHANDISE_OFFICE_SUPPLIES',
+    'GENERAL_MERCHANDISE_ONLINE_MARKETPLACES',
+    'GENERAL_MERCHANDISE_PET_SUPPLIES',
+    'GENERAL_MERCHANDISE_SPORTING_GOODS',
+    'GENERAL_MERCHANDISE_SUPERSTORES',
+    'GENERAL_MERCHANDISE_TOBACCO_AND_VAPING',
+    'GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE',
+  ]},
+  { group: '🚗 Transportation', cats: [
+    'TRANSPORTATION_BIKES_AND_SCOOTERS',
+    'TRANSPORTATION_GAS_STATION',
+    'TRANSPORTATION_PARKING',
+    'TRANSPORTATION_PUBLIC_TRANSIT',
+    'TRANSPORTATION_TAXIS_AND_RIDE_SHARES',
+    'TRANSPORTATION_TOLLS',
+    'TRANSPORTATION_OTHER_TRANSPORTATION',
+  ]},
+  { group: '✈️ Travel', cats: [
+    'TRAVEL_FLIGHTS',
+    'TRAVEL_HOTELS_AND_MOTELS',
+    'TRAVEL_RENTAL_CARS',
+    'TRAVEL_OTHER_TRAVEL',
+  ]},
+  { group: '💡 Utilities & Bills', cats: [
+    'RENT_AND_UTILITIES_GAS_AND_ELECTRICITY',
+    'RENT_AND_UTILITIES_INTERNET_AND_CABLE',
+    'RENT_AND_UTILITIES_RENT',
+    'RENT_AND_UTILITIES_SEWAGE_AND_WASTE_MANAGEMENT',
+    'RENT_AND_UTILITIES_TELEPHONE',
+    'RENT_AND_UTILITIES_WATER',
+    'RENT_AND_UTILITIES_OTHER_UTILITIES',
+  ]},
+  { group: '💰 Loan & Debt Payments', cats: [
+    'LOAN_PAYMENTS_CAR_PAYMENT',
+    'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT',
+    'LOAN_PAYMENTS_PERSONAL_LOAN_PAYMENT',
+    'LOAN_PAYMENTS_STUDENT_LOAN_PAYMENT',
+    'LOAN_PAYMENTS_OTHER_PAYMENT',
+  ]},
+  { group: '👶 Personal Care & Services', cats: [
+    'PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS',
+    'PERSONAL_CARE_HAIR_AND_BEAUTY',
+    'PERSONAL_CARE_LAUNDRY_AND_DRY_CLEANING',
+    'PERSONAL_CARE_OTHER_PERSONAL_CARE',
+  ]},
+  { group: '📚 Education', cats: [
+    'EDUCATION_COLLEGES_AND_UNIVERSITIES',
+    'EDUCATION_K_12_SCHOOLS',
+    'EDUCATION_VOCATIONAL_SCHOOLS',
+    'EDUCATION_OTHER_EDUCATION',
+  ]},
+  { group: '🏦 Transfers', cats: [
+    'TRANSFER_OUT_ACCOUNT_TRANSFER',
+    'TRANSFER_OUT_SAVINGS',
+    'TRANSFER_OUT_THIRD_PARTY',
+    'TRANSFER_OUT_TRANSFER_OUT_FROM_APPS',
+    'TRANSFER_OUT_WITHDRAWAL',
+  ]},
+  { group: '⚙️ General Services', cats: [
+    'GENERAL_SERVICES_AUTOMOTIVE',
+    'GENERAL_SERVICES_CHILDCARE',
+    'GENERAL_SERVICES_CLEANING',
+    'GENERAL_SERVICES_IT_AND_TECH_SUPPORT',
+    'GENERAL_SERVICES_LEGAL',
+    'GENERAL_SERVICES_MARKETING_AND_ADVERTISING',
+    'GENERAL_SERVICES_PET_SERVICES',
+    'GENERAL_SERVICES_POSTAGE_AND_SHIPPING',
+    'GENERAL_SERVICES_STORAGE',
+    'GENERAL_SERVICES_OTHER_GENERAL_SERVICES',
+  ]},
+  { group: '🏛️ Government & Tax', cats: [
+    'GOVERNMENT_AND_NON_PROFIT_DONATIONS',
+    'GOVERNMENT_AND_NON_PROFIT_GOVERNMENT_DEPARTMENTS_AND_AGENCIES',
+    'GOVERNMENT_AND_NON_PROFIT_TAX_PAYMENT',
+    'GOVERNMENT_AND_NON_PROFIT_OTHER_GOVERNMENT_AND_NON_PROFIT',
+  ]},
+];
+
+function formatPlaidCatLabel(cat) {
+  return cat.split('_').map((w,i) => {
+    if (i === 0) return ''; // skip group prefix
+    return w.charAt(0) + w.slice(1).toLowerCase();
+  }).slice(1).join(' ');
+}
+
+function renderPlaidPicker(selectedCats) {
+  const picker = document.getElementById('plaid-cat-picker');
+  picker.innerHTML = '';
+  PLAID_CATEGORIES.forEach(group => {
+    const groupLabel = document.createElement('div');
+    groupLabel.style.cssText = 'font-size:11px;font-weight:600;color:var(--text2);padding:6px 4px 2px;';
+    groupLabel.textContent = group.group;
+    picker.appendChild(groupLabel);
+    group.cats.forEach(cat => {
+      const isSelected = selectedCats && selectedCats.includes(cat);
+      const row = document.createElement('label');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text);' + (isSelected ? 'background:var(--green-dim);' : '');
+      row.innerHTML = `<input type="checkbox" value="${cat}" ${isSelected ? 'checked' : ''} style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0;"> ${formatPlaidCatLabel(cat)}`;
+      picker.appendChild(row);
+    });
+  });
+}
+
+function getSelectedPlaidCats() {
+  return Array.from(document.querySelectorAll('#plaid-cat-picker input:checked')).map(i => i.value);
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.setUser = function(name) {
