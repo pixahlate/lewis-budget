@@ -538,7 +538,7 @@ function renderReview() {
     container.innerHTML = '';
   } else {
     container.innerHTML = items.map(([key, item]) => {
-      const m = (item.merchant || item.name || '').replace(/\/g, '').replace(/'/g, '');
+      const m = (item.merchant || item.name || '').replace(/'/g, '');
       return '<div class="review-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
         '<div><div class="review-merchant">' + (item.merchant || item.name) + '</div>' +
@@ -556,18 +556,6 @@ function renderReview() {
   }
 
   renderRecategorize();
-}
-  const cats=(state&&state.categories)||[];
-  container.innerHTML=items.map(([key,item])=>`
-    <div class="review-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div><div class="review-merchant">${item.merchant||item.name}</div><div class="review-date">${item.date}</div></div>
-        <div class="review-amount">$${parseFloat(item.amount).toFixed(2)}</div>
-      </div>
-      <div class="review-label">Pick a category — we'll remember this merchant</div>
-      <div class="cat-picker">${cats.map(cat=>`<button class="cat-pick-btn" onclick="window._approveReview('${key}','${item.plaid_id}','${(item.merchant||item.name).replace(/'/g,"\\'")}',${item.amount},'${item.date}','${cat.id}')">${cat.name}</button>`).join('')}</div>
-    </div>
-  `).join('');
 }
 
 // ── Category actions ──────────────────────────────────────────────────────────
