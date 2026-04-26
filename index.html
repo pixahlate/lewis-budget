@@ -322,21 +322,30 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
-<!-- Add/Rename modal -->
+<!-- Step 1: Name + budget modal -->
 <div class="modal-overlay" id="cat-modal">
-  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+  <div class="modal">
     <h3 id="modal-title">Add category</h3>
     <input type="text" id="modal-cat-name" placeholder="Category name (e.g. Groceries)" maxlength="32" />
     <input type="number" id="modal-cat-budget" placeholder="Budget limit (e.g. 400)" min="0" step="1" inputmode="decimal" />
-    <div style="margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Map to Plaid categories (select all that apply)</div>
-      <div id="plaid-cat-picker" style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;"></div>
-    </div>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeModal()">Cancel</button>
-      <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmModal()">Add</button>
+      <button class="modal-confirm" id="modal-confirm-btn" onclick="confirmModal()">Next →</button>
     </div>
   </div>
+</div>
+
+<!-- Step 2: Full screen Plaid category picker -->
+<div id="plaid-picker-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;">
+  <div style="padding:56px 20px 20px;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-size:13px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;">Lewis Family</div>
+      <div style="font-size:22px;font-weight:600;">Map categories</div>
+    </div>
+    <button onclick="savePlaidMapping()" style="background:var(--green-dim);border:1px solid rgba(74,222,128,0.3);border-radius:var(--radius-sm);padding:10px 18px;font-size:14px;font-weight:500;color:var(--green);cursor:pointer;font-family:'DM Sans',sans-serif;">Save</button>
+  </div>
+  <div style="padding:0 20px 12px;font-size:13px;color:var(--text2);">Select all Plaid categories that should map to <strong id="plaid-picker-cat-name"></strong></div>
+  <div id="plaid-cat-picker" style="padding:0 16px 40px;display:flex;flex-direction:column;gap:0;"></div>
 </div>
 
 <!-- 3-dot dropdown -->
@@ -565,7 +574,6 @@ window.menuRename = function() {
   document.getElementById('modal-cat-name').value=cat.name;
   document.getElementById('modal-cat-budget').value=cat.budget||0;
   document.getElementById('modal-confirm-btn').textContent='Save';
-  renderPlaidPicker(cat.plaid_cats || []);
   document.getElementById('cat-modal').classList.add('open');
   setTimeout(()=>document.getElementById('modal-cat-name').focus(),200);
 };
@@ -598,7 +606,6 @@ window.openAddCategory = function() {
   document.getElementById('modal-cat-name').value='';
   document.getElementById('modal-cat-budget').value='';
   document.getElementById('modal-confirm-btn').textContent='Add';
-  renderPlaidPicker([]);
   document.getElementById('cat-modal').classList.add('open');
   setTimeout(()=>document.getElementById('modal-cat-name').focus(),200);
 };
@@ -610,17 +617,15 @@ window.confirmModal = async function() {
   const budget=parseInt(document.getElementById('modal-cat-budget').value)||0;
   if(!name){document.getElementById('modal-cat-name').focus();return;}
   const ns=JSON.parse(JSON.stringify(state));
-  const plaidCats = getSelectedPlaidCats();
-  if(modalMode==='add'){
-    if(!ns.categories) ns.categories=[];
-    ns.categories.push({id:genId(),name,budget,plaid_cats:plaidCats});
-    await set(budgetRef,ns); showToast(`"${name}" added`);
-  } else if(modalMode==='rename'&&menuCatId) {
-    const cat=ns.categories.find(c=>c.id===menuCatId);
-    if(cat){cat.name=name;cat.budget=budget;cat.plaid_cats=plaidCats;}
-    await set(budgetRef,ns); showToast('Category updated');
-  }
   closeModal();
+  const existingCat = modalMode==='rename' && menuCatId ? (state.categories||[]).find(c=>c.id===menuCatId) : null;
+  _pendingCatData = {
+    mode: modalMode,
+    id: modalMode==='add' ? genId() : menuCatId,
+    name,
+    budget,
+  };
+  openPlaidPickerScreen(name, existingCat ? existingCat.plaid_cats : []);
 };
 
 // ── Review approve ────────────────────────────────────────────────────────────
@@ -1010,30 +1015,37 @@ function formatPlaidCatLabel(cat) {
 }
 
 let _selectedPlaidCats = [];
+let _pendingCatData = null;
 
 function renderPlaidPicker(selectedCats) {
   _selectedPlaidCats = selectedCats ? [...selectedCats] : [];
   const picker = document.getElementById('plaid-cat-picker');
   picker.innerHTML = '';
+
   PLAID_CATEGORIES.forEach(group => {
-    const groupLabel = document.createElement('div');
-    groupLabel.style.cssText = 'font-size:11px;font-weight:600;color:var(--text2);padding:6px 4px 2px;letter-spacing:0.04em;';
-    groupLabel.textContent = group.group;
-    picker.appendChild(groupLabel);
+    // Group header
+    const groupEl = document.createElement('div');
+    groupEl.style.cssText = 'font-size:11px;font-weight:600;color:var(--text3);padding:16px 4px 8px;letter-spacing:0.08em;text-transform:uppercase;border-top:1px solid var(--border);margin-top:4px;';
+    groupEl.textContent = group.group;
+    picker.appendChild(groupEl);
+
     group.cats.forEach(cat => {
-      const btn = document.createElement('button');
       const isSelected = _selectedPlaidCats.includes(cat);
-      btn.setAttribute('data-plaid-cat', cat);
-      btn.style.cssText = `display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid ${isSelected ? 'rgba(74,222,128,0.4)' : 'transparent'};background:${isSelected ? 'var(--green-dim)' : 'transparent'};cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);text-align:left;`;
-      btn.innerHTML = `<span style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${isSelected ? 'var(--green)' : 'var(--border2)'};background:${isSelected ? 'var(--green)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${isSelected ? '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>${formatPlaidCatLabel(cat)}`;
-      btn.addEventListener('click', function(e) {
-        e.preventDefault();
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:13px 4px;border-bottom:1px solid var(--border);cursor:pointer;';
+      row.innerHTML = `
+        <span style="font-size:14px;color:var(--text);">${formatPlaidCatLabel(cat)}</span>
+        <div style="width:24px;height:24px;border-radius:6px;border:1.5px solid ${isSelected?'var(--green)':'var(--border2)'};background:${isSelected?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          ${isSelected?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+        </div>
+      `;
+      row.addEventListener('click', function() {
         const idx = _selectedPlaidCats.indexOf(cat);
         if(idx > -1) _selectedPlaidCats.splice(idx, 1);
         else _selectedPlaidCats.push(cat);
         renderPlaidPicker(_selectedPlaidCats);
       });
-      picker.appendChild(btn);
+      picker.appendChild(row);
     });
   });
 }
@@ -1041,6 +1053,34 @@ function renderPlaidPicker(selectedCats) {
 function getSelectedPlaidCats() {
   return [..._selectedPlaidCats];
 }
+
+function openPlaidPickerScreen(catName, existingCats) {
+  document.getElementById('plaid-picker-cat-name').textContent = '"' + catName + '"';
+  renderPlaidPicker(existingCats || []);
+  document.getElementById('plaid-picker-screen').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+window.savePlaidMapping = async function() {
+  if(!_pendingCatData) return;
+  const plaidCats = getSelectedPlaidCats();
+  const ns = JSON.parse(JSON.stringify(state));
+
+  if(_pendingCatData.mode === 'add') {
+    if(!ns.categories) ns.categories = [];
+    ns.categories.push({ id: _pendingCatData.id, name: _pendingCatData.name, budget: _pendingCatData.budget, plaid_cats: plaidCats });
+    await set(budgetRef, ns);
+    showToast('"' + _pendingCatData.name + '" added');
+  } else if(_pendingCatData.mode === 'rename') {
+    const cat = ns.categories.find(c => c.id === _pendingCatData.id);
+    if(cat) { cat.name = _pendingCatData.name; cat.budget = _pendingCatData.budget; cat.plaid_cats = plaidCats; }
+    await set(budgetRef, ns);
+    showToast('Category updated');
+  }
+
+  document.getElementById('plaid-picker-screen').style.display = 'none';
+  _pendingCatData = null;
+};
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.setUser = function(name) {
