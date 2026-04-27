@@ -214,7 +214,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <h3>Synergy Federal Credit Union</h3>
         <div class="bank-status"><div class="status-dot disconnected" id="bank-dot"></div><span id="bank-status-label">Not connected</span></div>
         <p>Connect your bank to automatically import and categorize transactions.</p>
-        <button class="connect-btn" id="connect-btn" onclick="connectBank()">Connect Bank Account</button>
+        <!-- Reconnect banner — shown when token expires -->
+        <div id="reauth-banner" style="display:none;background:var(--yellow-dim);border:1px solid rgba(251,191,36,0.3);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--yellow);line-height:1.5;">
+          ⚠️ Your bank connection needs attention. Tap below to reconnect — it only takes a few seconds.
+        </div>
+        <button class="connect-btn" id="connect-btn" onclick="connectBank()" style="display:none">Connect Bank Account</button>
+        <button class="connect-btn" id="reauth-btn" onclick="reauthBank()" style="display:none;background:var(--yellow-dim);border-color:rgba(251,191,36,0.3);color:var(--yellow);">Reconnect Bank Account</button>
         <button class="sync-btn" id="refresh-sync-btn" onclick="refreshAndSync()">Refresh & Sync Now</button>
         <div class="sync-result" id="sync-result"></div>
       </div>
@@ -789,6 +794,37 @@ window.connectBank = async function() {
   } catch(e){showToast('Could not connect to server');btn.disabled=false;btn.textContent='Connect Bank Account';}
 };
 
+window.reauthBank = async function() {
+  const btn = document.getElementById('reauth-btn');
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try {
+    const res = await fetch(SERVER_URL + '/api/plaid/create-update-token', {method:'POST'});
+    const {link_token} = await res.json();
+    const handler = Plaid.create({
+      token: link_token,
+      onSuccess: async (public_token) => {
+        // Exchange the new token
+        const er = await fetch(SERVER_URL + '/api/plaid/exchange-token', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({public_token})
+        });
+        if(er.ok) {
+          // Clear the error flag in Firebase
+          await set(ref(db, 'private/connection_error'), null);
+          localStorage.setItem('lewis_bank_connected','true');
+          updateBankStatus(true, false);
+          showToast('✓ Bank reconnected!');
+        }
+      },
+      onExit: () => { btn.disabled=false; btn.textContent='Reconnect Bank Account'; }
+    });
+    handler.open();
+  } catch(e) {
+    showToast('Could not connect to server');
+    btn.disabled=false; btn.textContent='Reconnect Bank Account';
+  }
+};
+
 window.refreshAndSync = async function() {
   const btn = document.getElementById('refresh-sync-btn'), result = document.getElementById('sync-result');
   btn.disabled=true; btn.textContent='Refreshing from bank…'; result.textContent='';
@@ -811,10 +847,14 @@ window.refreshAndSync = async function() {
   btn.disabled=false; btn.textContent='Refresh & Sync Now';
 };
 
-function updateBankStatus(connected) {
-  document.getElementById('bank-dot').className='status-dot '+(connected?'connected':'disconnected');
-  document.getElementById('bank-status-label').textContent=connected?'Connected — Synergy Federal Credit Union':'Not connected';
-  document.getElementById('connect-btn').style.display=connected?'none':'block';
+function updateBankStatus(connected, needsReauth) {
+  document.getElementById('bank-dot').className='status-dot '+(connected&&!needsReauth?'connected':'disconnected');
+  document.getElementById('bank-status-label').textContent=connected
+    ? (needsReauth ? 'Connection expired — reconnect required' : 'Connected — Synergy Federal Credit Union')
+    : 'Not connected';
+  document.getElementById('connect-btn').style.display=(!connected&&!needsReauth)?'block':'none';
+  document.getElementById('reauth-btn').style.display=needsReauth?'block':'none';
+  document.getElementById('reauth-banner').style.display=needsReauth?'block':'none';
 }
 
 window.enablePush = async function() {
@@ -851,7 +891,14 @@ function startSync() {
   });
 
   onValue(ref(db,'private/plaid_access_token'),(snapshot)=>{
-    if(snapshot.val()){localStorage.setItem('lewis_bank_connected','true');updateBankStatus(true);}
+    if(snapshot.val()){localStorage.setItem('lewis_bank_connected','true');}
+  });
+
+  onValue(ref(db,'private/connection_error'),(snapshot)=>{
+    const err = snapshot.val();
+    const connected = !!localStorage.getItem('lewis_bank_connected');
+    const needsReauth = err === 'reauth_required';
+    updateBankStatus(connected, needsReauth);
   });
 }
 
@@ -861,7 +908,7 @@ function startSync() {
 const savedTheme = localStorage.getItem('lewis_theme');
 if(savedTheme==='light'){document.body.classList.add('light');document.getElementById('theme-toggle').checked=true;}
 startSync();
-if(localStorage.getItem('lewis_bank_connected')) updateBankStatus(true);
+if(localStorage.getItem('lewis_bank_connected')) updateBankStatus(true, false);
 const params = new URLSearchParams(window.location.search);
 if(params.get('tab')==='review') window.switchTab('review',document.getElementById('tbtn-review'));
 </script>
