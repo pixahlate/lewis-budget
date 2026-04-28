@@ -1037,110 +1037,96 @@ function startSync() {
 
 
 // ── PIN logic ─────────────────────────────────────────────────────────────────
-let pinBuffer = '', pinMode = 'enter', pinFirstEntry = '';
-let cachedPin = null; // cached from Firebase so we don't fetch every keypress
+const PIN = {
+  buffer: '',
+  stage: 'enter',   // 'enter' | 'set' | 'verify'
+  first: '',
+  cached: null,
 
-function showPinScreen(mode) {
-  pinBuffer = ''; pinMode = mode; pinFirstEntry = '';
-  const screen = document.getElementById('pin-screen');
-  const title = document.getElementById('pin-title');
-  const subtitle = document.getElementById('pin-subtitle');
-  screen.classList.add('active');
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('pin-error').textContent = '';
-  updatePinDots();
-  if(mode === 'set') {
-    title.textContent = 'Set a PIN';
-    subtitle.textContent = 'Choose a 6-digit PIN';
-    subtitle.style.display = 'block';
-  } else if(mode === 'verify') {
-    title.textContent = 'Confirm PIN';
-    subtitle.textContent = 'Enter your PIN again to confirm';
-    subtitle.style.display = 'block';
-  } else {
-    title.textContent = 'Enter PIN';
-    subtitle.style.display = 'none';
-  }
-}
-
-function hidePinScreen() {
-  document.getElementById('pin-screen').classList.remove('active');
-  document.getElementById('app').style.display = 'block';
-}
-
-function updatePinDots(state) {
-  for(let i = 0; i < 6; i++) {
-    const dot = document.getElementById('pd'+i);
-    dot.className = 'pin-dot' + (i < pinBuffer.length ? (state==='error'?' error':' filled') : '');
-  }
-}
-
-window.pinKey = function(digit) {
-  if(pinBuffer.length >= 6) return;
-  pinBuffer += digit;
-  updatePinDots();
-  document.getElementById('pin-error').textContent = '';
-  if(pinBuffer.length === 6) {
-    setTimeout(() => handlePinComplete(), 100);
-  }
-};
-
-window.pinDelete = function() {
-  if(pinBuffer.length === 0) return;
-  pinBuffer = pinBuffer.slice(0,-1);
-  updatePinDots();
-};
-
-async function handlePinComplete() {
-  if(pinMode === 'enter') {
-    // Compare against Firebase PIN
-    if(pinBuffer === cachedPin) {
-      hidePinScreen();
-    } else {
-      updatePinDots('error');
-      document.getElementById('pin-error').textContent = 'Incorrect PIN. Try again.';
-      setTimeout(() => { pinBuffer=''; updatePinDots(); }, 800);
-    }
-  } else if(pinMode === 'set') {
-    pinFirstEntry = pinBuffer;
-    pinBuffer = '';
-    // Don't call showPinScreen — it resets pinFirstEntry via the mode change
-    // Just update the UI manually
-    pinMode = 'verify';
-    pinBuffer = '';
-    document.getElementById('pin-title').textContent = 'Confirm PIN';
-    document.getElementById('pin-subtitle').textContent = 'Enter your PIN again to confirm';
-    document.getElementById('pin-subtitle').style.display = 'block';
+  reset(stage) {
+    this.buffer = '';
+    this.stage = stage;
+    if(stage !== 'verify') this.first = '';
     document.getElementById('pin-error').textContent = '';
-    updatePinDots();
-  } else if(pinMode === 'verify') {
-    if(pinBuffer === pinFirstEntry) {
-      // Save PIN to Firebase — applies to all devices
-      await set(ref(db, 'app_pin'), pinBuffer);
-      cachedPin = pinBuffer;
-      hidePinScreen();
-      showToast('PIN set — all devices will use this PIN');
-    } else {
-      updatePinDots('error');
-      document.getElementById('pin-error').textContent = "PINs don't match. Start over.";
-      setTimeout(() => { pinBuffer=''; pinFirstEntry=''; showPinScreen('set'); }, 1000);
-    }
-  }
-}
+    this.updateDots();
+    const titles = {
+      enter:  ['Enter PIN', ''],
+      set:    ['Set a PIN', 'Choose a 6-digit PIN'],
+      verify: ['Confirm PIN', 'Enter your PIN again'],
+    };
+    document.getElementById('pin-title').textContent = titles[stage][0];
+    const sub = document.getElementById('pin-subtitle');
+    sub.textContent = titles[stage][1];
+    sub.style.display = titles[stage][1] ? 'block' : 'none';
+  },
 
-async function initPin() {
-  // Fetch PIN from Firebase
-  const pinSnap = await new Promise(resolve => {
-    const pinRef = ref(db, 'app_pin');
-    onValue(pinRef, snapshot => resolve(snapshot), { onlyOnce: true });
-  });
-  cachedPin = pinSnap.val();
-  if(cachedPin) {
-    showPinScreen('enter');
-  } else {
-    showPinScreen('set');
+  updateDots(state) {
+    for(let i = 0; i < 6; i++) {
+      const d = document.getElementById('pd'+i);
+      d.className = 'pin-dot' + (i < this.buffer.length ? (state==='error'?' error':' filled') : '');
+    }
+  },
+
+  addDigit(d) {
+    if(this.buffer.length >= 6) return;
+    this.buffer += d;
+    this.updateDots();
+    document.getElementById('pin-error').textContent = '';
+    if(this.buffer.length === 6) setTimeout(() => this.complete(), 150);
+  },
+
+  removeDigit() {
+    if(!this.buffer.length) return;
+    this.buffer = this.buffer.slice(0,-1);
+    this.updateDots();
+  },
+
+  async complete() {
+    if(this.stage === 'enter') {
+      if(this.buffer === this.cached) {
+        document.getElementById('pin-screen').classList.remove('active');
+        document.getElementById('app').style.display = 'block';
+      } else {
+        this.updateDots('error');
+        document.getElementById('pin-error').textContent = 'Incorrect PIN. Try again.';
+        setTimeout(() => this.reset('enter'), 800);
+      }
+
+    } else if(this.stage === 'set') {
+      this.first = this.buffer;
+      this.reset('verify');
+
+    } else if(this.stage === 'verify') {
+      if(this.buffer === this.first) {
+        await set(ref(db, 'app_pin'), this.buffer);
+        this.cached = this.buffer;
+        document.getElementById('pin-screen').classList.remove('active');
+        document.getElementById('app').style.display = 'block';
+        showToast('PIN set — applies to all devices');
+      } else {
+        this.updateDots('error');
+        document.getElementById('pin-error').textContent = "PINs don't match. Start over.";
+        setTimeout(() => { this.first=''; this.reset('set'); }, 900);
+      }
+    }
+  },
+
+  async init() {
+    const snap = await new Promise(resolve => {
+      onValue(ref(db,'app_pin'), s => resolve(s), {onlyOnce:true});
+    });
+    this.cached = snap.val();
+    document.getElementById('pin-screen').classList.add('active');
+    document.getElementById('app').style.display = 'none';
+    this.reset(this.cached ? 'enter' : 'set');
   }
-}
+};
+
+window.pinKey = d => PIN.addDigit(d);
+window.pinDelete = () => PIN.removeDigit();
+window.showPinScreen = stage => { PIN.first=''; PIN.reset(stage); document.getElementById('pin-screen').classList.add('active'); document.getElementById('app').style.display='none'; };
+
+async function initPin() { await PIN.init(); }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 const savedTheme = localStorage.getItem('lewis_theme');
