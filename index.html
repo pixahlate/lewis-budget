@@ -529,7 +529,7 @@ function renderRecategorize() {
       '</div>'+
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'+
         '<div style="font-family:\'DM Mono\',monospace;font-size:14px;color:var(--red);">-$'+parseFloat(l.amount).toFixed(2)+'</div>'+
-        '<button class="recat-move-btn">Move</button>'+
+        '<button class="recat-move-btn">Edit</button>'+
       '</div>';
     row.querySelector('.recat-move-btn').addEventListener('click', () => openRecatModal(logKey, l, cat));
     container.appendChild(row);
@@ -544,15 +544,55 @@ function openRecatModal(logKey, entry, currentCat) {
     '<strong>'+(entry.merchant||'Transaction')+'</strong> · $'+parseFloat(entry.amount).toFixed(2)+'<br/>Currently in: <strong>'+(currentCat?currentCat.name:'Unknown')+'</strong>';
   const list = document.getElementById('recat-cat-list');
   list.innerHTML = '';
+
+  // Category options
+  const moveLabel = document.createElement('div');
+  moveLabel.style.cssText = 'font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;';
+  moveLabel.textContent = 'Move to category';
+  list.appendChild(moveLabel);
+
   cats.forEach(cat => {
     if(cat.id === entry.cat) return;
     const btn = document.createElement('button');
-    btn.style.cssText = 'width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:"DM Sans",sans-serif;font-size:14px;font-weight:500;color:var(--text);';
+    btn.style.cssText = 'width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:"DM Sans",sans-serif;font-size:14px;font-weight:500;color:var(--text);margin-bottom:8px;';
     btn.textContent = cat.name;
     btn.addEventListener('click', () => moveTransaction(cat));
     list.appendChild(btn);
   });
+
+  // Delete option
+  const divider = document.createElement('div');
+  divider.style.cssText = 'border-top:1px solid var(--border);margin:8px 0 12px;';
+  list.appendChild(divider);
+
+  const deleteLabel = document.createElement('div');
+  deleteLabel.style.cssText = 'font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;';
+  deleteLabel.textContent = 'Or remove transaction';
+  list.appendChild(deleteLabel);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.style.cssText = 'width:100%;background:var(--red-dim);border:1px solid rgba(248,113,113,0.25);border-radius:var(--radius-sm);padding:12px 14px;text-align:left;cursor:pointer;font-family:"DM Sans",sans-serif;font-size:14px;font-weight:500;color:var(--red);';
+  deleteBtn.textContent = '🗑 Delete this transaction';
+  deleteBtn.addEventListener('click', () => deleteTransaction());
+  list.appendChild(deleteBtn);
+
   document.getElementById('recat-modal').classList.add('open');
+}
+
+async function deleteTransaction() {
+  if(!recatTarget || !state) return;
+  const { logKey, entry, currentCat } = recatTarget;
+  closeRecatModal();
+  const ns = JSON.parse(JSON.stringify(state));
+  const amount = parseFloat(entry.amount);
+  // Subtract from category spent
+  if(currentCat && ns.spent[currentCat.id]) {
+    ns.spent[currentCat.id] = Math.max(0, (ns.spent[currentCat.id]||0) - amount);
+  }
+  // Remove from log
+  if(ns.log[logKey]) delete ns.log[logKey];
+  await set(budgetRef, ns);
+  showToast('Transaction deleted');
 }
 
 window.closeRecatModal = function() {
@@ -825,24 +865,64 @@ window.reauthBank = async function() {
   }
 };
 
-window.refreshAndSync = async function() {
-  const btn = document.getElementById('refresh-sync-btn'), result = document.getElementById('sync-result');
-  btn.disabled=true; btn.textContent='Refreshing from bank…'; result.textContent='';
+async function runSync(showResult) {
+  const result = document.getElementById('sync-result');
   try {
-    const refreshRes = await fetch(SERVER_URL+'/api/plaid/refresh');
-    const refreshData = await refreshRes.json();
-    if(!refreshData.success){result.textContent='Refresh failed: '+refreshData.error;btn.disabled=false;btn.textContent='Refresh & Sync Now';return;}
-    btn.textContent='Fetching… (15s)';
-    await new Promise(r => setTimeout(r,15000));
-    btn.textContent='Syncing…';
     const syncRes = await fetch(SERVER_URL+'/api/plaid/sync',{method:'POST'});
     const syncData = await syncRes.json();
-    if(syncData.success){
+    if(syncData.success && showResult) {
       result.textContent='✓ '+syncData.auto_posted+' auto-posted · '+syncData.needs_review+' need review';
       if(syncData.needs_review>0) showToast(syncData.needs_review+' need review');
       else if(syncData.auto_posted>0) showToast(syncData.auto_posted+' transactions synced!');
-      else showToast('All up to date!');
-    } else result.textContent='Sync failed: '+syncData.error;
+      else if(showResult) showToast('All up to date!');
+    } else if(!syncData.success && showResult) {
+      result.textContent='Sync failed: '+syncData.error;
+    }
+    return syncData;
+  } catch(e) {
+    if(showResult) result.textContent='Connection error';
+  }
+}
+
+async function backgroundSync() {
+  // Silent sync on app open — no loading states, just updates if anything new
+  if(!localStorage.getItem('lewis_bank_connected')) return;
+  try {
+    // First do a quick sync with existing cursor
+    const quick = await runSync(false);
+    // If nothing new, trigger a refresh from bank and sync again after 8s
+    if(quick && quick.auto_posted === 0 && quick.needs_review === 0) {
+      await fetch(SERVER_URL+'/api/plaid/refresh');
+      setTimeout(() => runSync(false), 8000);
+    }
+  } catch(e) {}
+}
+
+window.refreshAndSync = async function() {
+  const btn = document.getElementById('refresh-sync-btn'), result = document.getElementById('sync-result');
+  btn.disabled=true; btn.textContent='Refreshing…'; result.textContent='';
+  try {
+    // Refresh from bank
+    const refreshRes = await fetch(SERVER_URL+'/api/plaid/refresh');
+    const refreshData = await refreshRes.json();
+    if(!refreshData.success){
+      result.textContent='Refresh failed: '+refreshData.error;
+      btn.disabled=false; btn.textContent='Refresh & Sync Now'; return;
+    }
+    btn.textContent='Syncing…';
+    // Try syncing every 3 seconds up to 5 times instead of flat 15s wait
+    let synced = false;
+    for(let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const syncData = await runSync(false);
+      if(syncData && (syncData.auto_posted > 0 || syncData.needs_review > 0)) {
+        result.textContent='✓ '+syncData.auto_posted+' auto-posted · '+syncData.needs_review+' need review';
+        if(syncData.needs_review>0) showToast(syncData.needs_review+' need review');
+        else showToast(syncData.auto_posted+' transactions synced!');
+        synced = true; break;
+      }
+    }
+    if(!synced) { result.textContent='✓ All up to date!'; showToast('All up to date!'); }
   } catch(e){result.textContent='Connection error';}
   btn.disabled=false; btn.textContent='Refresh & Sync Now';
 };
@@ -911,6 +991,8 @@ startSync();
 if(localStorage.getItem('lewis_bank_connected')) updateBankStatus(true, false);
 const params = new URLSearchParams(window.location.search);
 if(params.get('tab')==='review') window.switchTab('review',document.getElementById('tbtn-review'));
+// Background sync on app open
+setTimeout(backgroundSync, 3000);
 </script>
 </body>
 </html>
