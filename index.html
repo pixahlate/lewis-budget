@@ -302,7 +302,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="settings-card">
         <div class="settings-row">
           <div><div class="settings-label">Change PIN</div><div class="settings-sub">Update your 6-digit app PIN</div></div>
-          <button onclick="showPinScreen('set')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;">Change</button>
+          <button onclick="cachedPin=null;showPinScreen('set')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;">Change</button>
         </div>
       </div>
       <div style="text-align:center;padding:16px;font-size:12px;color:var(--text3)">Lewis Family Budget · Version 4.20.69</div>
@@ -1038,6 +1038,7 @@ function startSync() {
 
 // ── PIN logic ─────────────────────────────────────────────────────────────────
 let pinBuffer = '', pinMode = 'enter', pinFirstEntry = '';
+let cachedPin = null; // cached from Firebase so we don't fetch every keypress
 
 function showPinScreen(mode) {
   pinBuffer = ''; pinMode = mode; pinFirstEntry = '';
@@ -1090,10 +1091,10 @@ window.pinDelete = function() {
   updatePinDots();
 };
 
-function handlePinComplete() {
-  const stored = localStorage.getItem('budget_pin');
+async function handlePinComplete() {
   if(pinMode === 'enter') {
-    if(pinBuffer === stored) {
+    // Compare against Firebase PIN
+    if(pinBuffer === cachedPin) {
       hidePinScreen();
     } else {
       updatePinDots('error');
@@ -1106,14 +1107,30 @@ function handlePinComplete() {
     showPinScreen('verify');
   } else if(pinMode === 'verify') {
     if(pinBuffer === pinFirstEntry) {
-      localStorage.setItem('budget_pin', pinBuffer);
+      // Save PIN to Firebase — applies to all devices
+      await set(ref(db, 'app_pin'), pinBuffer);
+      cachedPin = pinBuffer;
       hidePinScreen();
-      showToast('PIN set successfully!');
+      showToast('PIN set — all devices will use this PIN');
     } else {
       updatePinDots('error');
       document.getElementById('pin-error').textContent = "PINs don't match. Start over.";
       setTimeout(() => { pinBuffer=''; pinFirstEntry=''; showPinScreen('set'); }, 1000);
     }
+  }
+}
+
+async function initPin() {
+  // Fetch PIN from Firebase
+  const pinSnap = await new Promise(resolve => {
+    const pinRef = ref(db, 'app_pin');
+    onValue(pinRef, snapshot => resolve(snapshot), { onlyOnce: true });
+  });
+  cachedPin = pinSnap.val();
+  if(cachedPin) {
+    showPinScreen('enter');
+  } else {
+    showPinScreen('set');
   }
 }
 
@@ -1127,14 +1144,8 @@ if(params.get('tab')==='review') window.switchTab('review',document.getElementBy
 // Background sync on app open
 setTimeout(backgroundSync, 3000);
 
-// PIN gate
-const storedPin = localStorage.getItem('budget_pin');
-if(storedPin) {
-  showPinScreen('enter');
-} else {
-  // No PIN set yet — prompt to create one
-  showPinScreen('set');
-}
+// PIN gate — fetches from Firebase so all devices share the same PIN
+initPin();
 </script>
 </body>
 </html>
