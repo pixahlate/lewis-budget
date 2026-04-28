@@ -25,6 +25,20 @@ body.light {
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none;transition:background 0.2s,color 0.2s;}
 #app{max-width:480px;margin:0 auto;padding:0 0 72px;}
+#pin-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:500;flex-direction:column;align-items:center;justify-content:center;gap:32px;}
+#pin-screen.active{display:flex;}
+.pin-title{font-size:22px;font-weight:600;letter-spacing:-0.5px;text-align:center;}
+.pin-subtitle{font-size:14px;color:var(--text2);text-align:center;margin-top:-24px;}
+.pin-dots{display:flex;gap:16px;align-items:center;justify-content:center;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:transparent;transition:background 0.15s,border-color 0.15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);}
+.pin-dot.error{background:var(--red);border-color:var(--red);}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:280px;}
+.pin-key{background:var(--surface);border:1px solid var(--border);border-radius:50%;width:80px;height:80px;font-size:22px;font-weight:500;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;transition:background 0.1s;-webkit-tap-highlight-color:transparent;}
+.pin-key:active{background:var(--surface2);}
+.pin-key.delete{font-size:18px;color:var(--text2);}
+.pin-key.empty{background:transparent;border:none;cursor:default;}
+.pin-error{font-size:13px;color:var(--red);text-align:center;min-height:20px;}
 .tab-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:50;max-width:480px;margin:0 auto;}
 .tab-btn{flex:1;padding:10px 4px 18px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text3);font-size:9px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;transition:color 0.15s;position:relative;}
 .tab-btn.active{color:var(--accent);}
@@ -156,6 +170,38 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </head>
 <body>
 
+<!-- PIN Screen -->
+<div id="pin-screen">
+  <div>
+    <div style="font-size:13px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;text-align:center;margin-bottom:8px;">Lewis Family</div>
+    <div class="pin-title" id="pin-title">Enter PIN</div>
+  </div>
+  <div class="pin-subtitle" id="pin-subtitle" style="display:none"></div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+    <div class="pin-dot" id="pd4"></div>
+    <div class="pin-dot" id="pd5"></div>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <div class="pin-key empty"></div>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key delete" onclick="pinDelete()">⌫</button>
+  </div>
+</div>
+
 <div id="app">
 
   <!-- Budget tab -->
@@ -251,6 +297,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="settings-row">
           <div><div class="settings-label danger-label">Clear all categories</div><div class="settings-sub">Removes all categories and data</div></div>
           <button onclick="clearAll()" style="background:var(--red-dim);border:1px solid rgba(248,113,113,0.25);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--red);cursor:pointer;font-family:'DM Sans',sans-serif;">Clear</button>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div><div class="settings-label">Change PIN</div><div class="settings-sub">Update your 6-digit app PIN</div></div>
+          <button onclick="showPinScreen('set')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;">Change</button>
         </div>
       </div>
       <div style="text-align:center;padding:16px;font-size:12px;color:var(--text3)">Lewis Family Budget · Version 4.20.69</div>
@@ -984,6 +1036,87 @@ function startSync() {
 
 
 
+// ── PIN logic ─────────────────────────────────────────────────────────────────
+let pinBuffer = '', pinMode = 'enter', pinFirstEntry = '';
+
+function showPinScreen(mode) {
+  pinBuffer = ''; pinMode = mode; pinFirstEntry = '';
+  const screen = document.getElementById('pin-screen');
+  const title = document.getElementById('pin-title');
+  const subtitle = document.getElementById('pin-subtitle');
+  screen.classList.add('active');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('pin-error').textContent = '';
+  updatePinDots();
+  if(mode === 'set') {
+    title.textContent = 'Set a PIN';
+    subtitle.textContent = 'Choose a 6-digit PIN';
+    subtitle.style.display = 'block';
+  } else if(mode === 'verify') {
+    title.textContent = 'Confirm PIN';
+    subtitle.textContent = 'Enter your PIN again to confirm';
+    subtitle.style.display = 'block';
+  } else {
+    title.textContent = 'Enter PIN';
+    subtitle.style.display = 'none';
+  }
+}
+
+function hidePinScreen() {
+  document.getElementById('pin-screen').classList.remove('active');
+  document.getElementById('app').style.display = 'block';
+}
+
+function updatePinDots(state) {
+  for(let i = 0; i < 6; i++) {
+    const dot = document.getElementById('pd'+i);
+    dot.className = 'pin-dot' + (i < pinBuffer.length ? (state==='error'?' error':' filled') : '');
+  }
+}
+
+window.pinKey = function(digit) {
+  if(pinBuffer.length >= 6) return;
+  pinBuffer += digit;
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  if(pinBuffer.length === 6) {
+    setTimeout(() => handlePinComplete(), 100);
+  }
+};
+
+window.pinDelete = function() {
+  if(pinBuffer.length === 0) return;
+  pinBuffer = pinBuffer.slice(0,-1);
+  updatePinDots();
+};
+
+function handlePinComplete() {
+  const stored = localStorage.getItem('budget_pin');
+  if(pinMode === 'enter') {
+    if(pinBuffer === stored) {
+      hidePinScreen();
+    } else {
+      updatePinDots('error');
+      document.getElementById('pin-error').textContent = 'Incorrect PIN. Try again.';
+      setTimeout(() => { pinBuffer=''; updatePinDots(); }, 800);
+    }
+  } else if(pinMode === 'set') {
+    pinFirstEntry = pinBuffer;
+    pinBuffer = '';
+    showPinScreen('verify');
+  } else if(pinMode === 'verify') {
+    if(pinBuffer === pinFirstEntry) {
+      localStorage.setItem('budget_pin', pinBuffer);
+      hidePinScreen();
+      showToast('PIN set successfully!');
+    } else {
+      updatePinDots('error');
+      document.getElementById('pin-error').textContent = "PINs don't match. Start over.";
+      setTimeout(() => { pinBuffer=''; pinFirstEntry=''; showPinScreen('set'); }, 1000);
+    }
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 const savedTheme = localStorage.getItem('lewis_theme');
 if(savedTheme==='light'){document.body.classList.add('light');document.getElementById('theme-toggle').checked=true;}
@@ -993,6 +1126,15 @@ const params = new URLSearchParams(window.location.search);
 if(params.get('tab')==='review') window.switchTab('review',document.getElementById('tbtn-review'));
 // Background sync on app open
 setTimeout(backgroundSync, 3000);
+
+// PIN gate
+const storedPin = localStorage.getItem('budget_pin');
+if(storedPin) {
+  showPinScreen('enter');
+} else {
+  // No PIN set yet — prompt to create one
+  showPinScreen('set');
+}
 </script>
 </body>
 </html>
