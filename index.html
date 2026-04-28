@@ -1104,7 +1104,15 @@ async function handlePinComplete() {
   } else if(pinMode === 'set') {
     pinFirstEntry = pinBuffer;
     pinBuffer = '';
-    showPinScreen('verify');
+    // Don't call showPinScreen — it resets pinFirstEntry via the mode change
+    // Just update the UI manually
+    pinMode = 'verify';
+    pinBuffer = '';
+    document.getElementById('pin-title').textContent = 'Confirm PIN';
+    document.getElementById('pin-subtitle').textContent = 'Enter your PIN again to confirm';
+    document.getElementById('pin-subtitle').style.display = 'block';
+    document.getElementById('pin-error').textContent = '';
+    updatePinDots();
   } else if(pinMode === 'verify') {
     if(pinBuffer === pinFirstEntry) {
       // Save PIN to Firebase — applies to all devices
