@@ -305,6 +305,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <button onclick="cachedPin=null;showPinScreen('set')" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif;">Change</button>
         </div>
       </div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div><div class="settings-label">Manual entry</div><div class="settings-sub">Add a transaction manually</div></div>
+          <button onclick="openManualModal()" style="background:var(--blue-dim);border:1px solid rgba(96,165,250,0.3);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--blue);cursor:pointer;font-family:'DM Sans',sans-serif;">Add</button>
+        </div>
+      </div>
       <div style="text-align:center;padding:16px;font-size:12px;color:var(--text3)">Lewis Family Budget · Version 4.20.69</div>
     </div>
   </div>
@@ -378,6 +384,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div id="recat-cat-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     <div style="margin-top:14px;">
       <button class="modal-cancel" style="width:100%" onclick="closeRecatModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Entry Modal -->
+<div class="modal-overlay" id="manual-modal">
+  <div class="modal">
+    <h3>Add transaction</h3>
+    <input type="text" id="manual-name" placeholder="Merchant / description" maxlength="40" />
+    <input type="number" id="manual-amount" placeholder="Amount (e.g. 24.99)" min="0" step="0.01" inputmode="decimal" />
+    <input type="date" id="manual-date" />
+    <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Category</div>
+    <select id="manual-category" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;margin-bottom:12px;-webkit-appearance:none;appearance:none;">
+      <option value="">Select a category...</option>
+    </select>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeManualModal()">Cancel</button>
+      <button class="modal-confirm" onclick="submitManualEntry()">Add</button>
     </div>
   </div>
 </div>
@@ -1035,6 +1059,64 @@ function startSync() {
 }
 
 
+
+// ── Manual entry ─────────────────────────────────────────────────────────────
+window.openManualModal = function() {
+  // Populate category dropdown with current categories
+  const cats = (state && state.categories) || [];
+  const select = document.getElementById('manual-category');
+  select.innerHTML = '<option value="">Select a category...</option>';
+  cats.forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.name;
+    select.appendChild(opt);
+  });
+  // Default date to today
+  document.getElementById('manual-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('manual-name').value = '';
+  document.getElementById('manual-amount').value = '';
+  document.getElementById('manual-category').value = '';
+  document.getElementById('manual-modal').classList.add('open');
+  setTimeout(() => document.getElementById('manual-name').focus(), 200);
+};
+
+window.closeManualModal = function() {
+  document.getElementById('manual-modal').classList.remove('open');
+};
+
+window.submitManualEntry = async function() {
+  const name = document.getElementById('manual-name').value.trim();
+  const amount = parseFloat(document.getElementById('manual-amount').value);
+  const date = document.getElementById('manual-date').value;
+  const catId = document.getElementById('manual-category').value;
+
+  if(!name) { document.getElementById('manual-name').focus(); return; }
+  if(!amount || amount <= 0) { document.getElementById('manual-amount').focus(); return; }
+  if(!date) { document.getElementById('manual-date').focus(); return; }
+  if(!catId) { showToast('Please select a category'); return; }
+
+  const ns = JSON.parse(JSON.stringify(state));
+  if(!ns.spent) ns.spent = {};
+  if(!ns.log) ns.log = {};
+
+  const key = 'e' + Date.now() + Math.random().toString(36).substr(2,5);
+  const txnDate = new Date(date + 'T12:00:00');
+  ns.spent[catId] = (ns.spent[catId] || 0) + amount;
+  ns.log[key] = {
+    cat: catId,
+    amount: amount.toFixed(2),
+    who: 'Manual',
+    time: txnDate.toLocaleDateString('en-US', {month:'short', day:'numeric'}),
+    ts: txnDate.getTime(),
+    merchant: name,
+  };
+
+  await set(budgetRef, ns);
+  closeManualModal();
+  const cat = (state.categories || []).find(c => c.id === catId);
+  showToast('Added $' + amount.toFixed(2) + ' to ' + (cat ? cat.name : 'category'));
+};
 
 // ── PIN logic ─────────────────────────────────────────────────────────────────
 const PIN = {
